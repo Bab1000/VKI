@@ -1,0 +1,22 @@
+
+#cmakedefine GOTO_BLAS
+
+#cmakedefine NITROGEN_PARK
+
+#cmakedefine NITROGEN_NASA
+
+#cmakedefine NITROGEN_BARI
+
+#cmakedefine NITROGEN_FHO
+
+#cmakedefine NITROGEN_TTLTH
+
+#cmakedefine NITROGEN_DSMC
+
+#cmakedefine ARGON_CR
+
+#cmakedefine POLYAT_GAS_WCU
+
+#cmakedefine MUTATIONPP
+
+#cmakedefine CARBONABLA

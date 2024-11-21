@@ -1,0 +1,66 @@
+Project: Beta Estimation and Neural Network Development
+
+├── Part 1: Data Comparison and Preliminary Analysis
+
+│   ├── 1. Literature Review and Background Analysis
+│   │   ├── 1.1 Literature Review
+│   │   │   ├── 1.1.1 General Theory of Beta Estimation and Boundary Layer Analysis
+│   │   │   └── 1.1.2 Review of Previous Studies on ICP, BL, Stagline, and OpenFOAM
+│   │   ├── 1.2 Evaluation of Existing Models and Tools
+│   │   │   ├── 1.2.1 ICP and BL Code: Applications, Limitations, and Validation
+│   │   │   ├── 1.2.2 Stagline Code: Capabilities, Dependencies, and Setup
+│   │   │   ├── 1.2.3 OpenFOAM Investigation (Collaboration with Silvania Lopez if feasible)
+│   │   │   └── 1.2.4 Summary of Insights for Data Comparison
+
+│   ├── 2. Tool Comparison and Beta Evaluation
+│   │   ├── 2.1 Computational Beta Generation
+│   │   │   ├── 2.1.1 Generate Beta with Stagline Code using ICP Initial Conditions (I.C.s)
+│   │   │   ├── 2.1.2 (Optional) Integrate OpenFOAM for Beta Evaluation
+│   │   ├── 2.2 Comparative Analysis
+│   │   │   ├── 2.2.1 Comparative Analysis of ICP, ICP + BL, Stagline, and OpenFOAM Outputs
+│   │   │   └── 2.2.2 Identify Required Corrections for Accurate Velocity Gradient Computation
+
+│   └── 3. Experimental Conditions Expansion
+│       ├── 3.1 Experimental Data Handling
+│       │   ├── 3.1.1 Organize and Pre-process Experimental Data from experimental conditions expansion
+│       ├── 3.2 Reliability Assessment and Beta Validation
+│       │   ├── 3.2.1 Compare Experimental and Computational Beta Outputs
+│       │   ├── 3.2.2 Reliability and Consistency Check of Computational Tools
+│       │   └── 3.2.3 Identify Most Reliable Tool(s) for Beta Computation
+
+├── Part 2: Neural Network Development
+
+│   ├── 4. Database Preparation
+│   │   ├── 4.1 Database Structuring
+│   │   │   ├── 4.1.1 Define Structure Based on Test Conditions (Pressure, Power, Enthalpy)
+│   │   │   └── 4.1.2 Outline Data Requirements for Training and Validation Sets
+│   │   ├── 4.2 Data Population
+│   │   │   ├── 4.2.1 Populate Database with Simulation Results
+│   │   │   └── 4.2.2 Integrate Experimental Data for Comprehensive Dataset
+│   │   └── 4.3 Data Consistency Check
+│   │       └── 4.3.1 Ensure Completeness and Consistency Across All Data Entries
+
+│   ├── 5. Neural Network Model Development
+│   │   ├── 5.1 NN Architecture Definition
+│   │   │   ├── 5.1.1 Select NN Structure, Layers, and Activation Functions
+│   │   │   └── 5.1.2 Define Input Parameters and Target Outputs
+│   │   ├── 5.2 Training and Optimization
+│   │   │   ├── 5.2.1 Train NN Using the Structured Database
+│   │   │   └── 5.2.2 Optimize Training Parameters for Convergence
+│   │   └── 5.3 Validation and Testing
+│   │       ├── 5.3.1 Validate NN Against Computational and Experimental Data
+│   │       └── 5.3.2 Assess Generalization and Error Rates
+│   └── 6. Results Analysis and Neural Network Performance Evaluation
+│       ├── 6.1 Comparison of NN Outputs with Computational and Experimental Beta Values
+│       ├── 6.2 Identification of Accurate Configurations and NN Reliability Evaluation
+│       └── 6.3 Documentation of NN Findings and Applications for Beta Estimation
+
+└── Final Phase: Reporting and Presentation
+
+    ├── 7. Documentation and Report Compilation
+    │   ├── 7.1 Compile Comprehensive Report from Parts 1 and 2
+    │   └── 7.2 Synthesize Key Findings, Observations, and Recommendations
+
+    └── 8. Final Presentation Preparation
+        ├── 8.1 Develop Presentation Slides Summarizing Project Workflow, Findings, and Applications
+        └── 8.2 Conduct Rehearsal for Project Deliverable Presentation

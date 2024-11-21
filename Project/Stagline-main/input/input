@@ -1,0 +1,231 @@
+#------------------------------------------------------------------------------
+#
+# Inlet conditions defined taken from case P6 (free stream velocity and pressure) except the total enthalpy (and so temperature and composition) that is taken arbitrarily as 40MJ/kg for the Ground to Flight analysis 
+# The simulation starts at the deviation point
+# So, the velocity U_s is imposed (instead of the mass flow rate); 
+# I mass fractions are calculated using the temperature that gives the desired enthalpy (39.98MJ/kg for static enthalpy in this case)
+# the free stream static pressure (before the dynamic pressure drop) that is 20000 Pa from
+# the experiment. 
+# Radius: 25 mm
+# BC: Isothermal ablation 2000K 
+# Nitridation: OFF
+# Sublimation: ON 
+# Catalicity: OFF
+# Code version: stagline_lisbon
+#------------------------------------------------------------------------------
+# Simulation Name 
+Simulation_Name
+G_P200_H40_T2000_r25_new_grid_impl_pyro
+# Information about the physical model and set of equations to be solved
+Physical_model
+neq
+#------------------------------------------------------------------------------
+Thermodynamic_library
+Mutationpp
+#------------------------------------------------------------------------------
+Thermodynamic_library_path
+none
+#------------------------------------------------------------------------------
+Dissipation_phenomena
+.TRUE. 
+#------------------------------------------------------------------------------
+Dimensions
+2
+#------------------------------------------------------------------------------
+Stag_line
+.TRUE.
+#------------------------------------------------------------------------------
+Stag_line_geom
+1
+#------------------------------------------------------------------------------
+# Setting the mixture, transfer mechanism and reaction scheme
+#------------------------------------------------------------------------------
+Mixture
+air-ions-carbon-phenol_20_olynick99-park01
+#------------------------------------------------------------------------------
+Reaction
+none
+#------------------------------------------------------------------------------
+State_Model
+ChemNonEq1T
+#------------------------------------------------------------------------------
+Transfer_mechanism
+none
+#------------------------------------------------------------------------------
+Number_of_species
+20 
+#------------------------------------------------------------------------------
+Number_of_rot_temp
+0
+#------------------------------------------------------------------------------
+Number_of_vib_temp
+0
+#------------------------------------------------------------------------------
+Number_of_el_temp
+0
+#------------------------------------------------------------------------------
+# Source terms and discretization (time and space)
+#------------------------------------------------------------------------------
+Source_terms
+3
+kinetics
+inv_stag
+diff_stag
+#------------------------------------------------------------------------------
+Source_Jac
+numerical
+numerical
+numerical  
+#------------------------------------------------------------------------------
+Diff_flux_Jac
+numerical
+#------------------------------------------------------------------------------
+Flux_splitter
+roe     
+#------------------------------------------------------------------------------
+Diff_flux_Jac
+numerical
+#------------------------------------------------------------------------------
+Flux_Jac
+numerical    
+#------------------------------------------------------------------------------
+Time_discretization
+fi
+1
+#------------------------------------------------------------------------------
+CFL_number
+2.0d-1
+#------------------------------------------------------------------------------
+Inter_CFL
+.TRUE.
+/personnel/reseng_ar/turchi/WORK/S-L_code_debug/stagline_ablation/input/cfl_G_P200_H40_T2000_r25_new_grid_impl_pyro
+5
+#------------------------------------------------------------------------------
+VNN_number 
+2.d-1
+#------------------------------------------------------------------------------
+Polynomial_reconstruction 
+linear  
+#------------------------------------------------------------------------------
+Metrics
+.TRUE. 
+#------------------------------------------------------------------------------
+Limiter_function
+van_albada1
+#------------------------------------------------------------------------------
+Stop_condition
+Residual  
+-5.d0  
+#------------------------------------------------------------------------------
+Output_update
+10
+#------------------------------------------------------------------------------
+Restart
+.TRUE. 
+#------------------------------------------------------------------------------
+RestartPG
+.FALSE.
+#------------------------------------------------------------------------------
+RestartEQ
+.FALSE.
+#------------------------------------------------------------------------------
+Print_extra_data
+.TRUE.
+#------------------------------------------------------------------------------
+# Boundary conditions (number, type and associated data)
+#------------------------------------------------------------------------------
+Boundary_conditions
+2
+no_slip_isothermal_ablation
+sub_in_vel_equi_comp
+#------------------------------------------------------------------------------
+# Physical quantities imposed at the boundaries (corresponding to the order specified before) 
+#------------------------------------------------------------------------------
+Twall
+2000.0
+uin dv_dyin Tin pin yiin
+-140            
+0.0d0 
+7720
+20000.d0
+1.26242e-07             
+0.000697508   
+0.00260421     
+0.72037    
+0.231958   
+0.000482725      
+0.0438829   
+5.02097e-06 
+0             
+0             
+0             
+0             
+0             
+0             
+0       
+0       
+0       
+0       
+0       
+0       
+#------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
+# The following reactions are considered (3 heterogeneous and 1 sublimation)
+# O+C_s => CO
+# O+1/2C_s => CO
+# N+C_s => CN
+# 3C_s => C3
+#
+# Note:If "Custom" is used ad abltion library name, the reaction probabilities have to be given
+#      in four rows in the same order of the reactions above.
+#------------------------------------------------------------------------------
+Ablation_library
+Park_no_nitri
+#------------------------------------------------------------------------------
+Nitrogen_recombination_coefficient
+0.d0
+#------------------------------------------------------------------------------
+Wall_emissivity
+0.86d0  
+#------------------------------------------------------------------------------
+Pyrolysis/Ablation mass injection ratio
+0.21d0 
+#------------------------------------------------------------------------------
+# Initial field (only for setting variables at different x or y locations)
+#------------------------------------------------------------------------------
+Initial_field_var 
+x
+Number_of_subintervals
+1
+-1.d0
+#------------------------------------------------------------------------------
+# Physical variable values (species densities, velocity components and temperatures)
+5.78713e-10                 
+3.19749e-06       
+1.19381e-05       
+0.0033023       
+0.00106333       
+2.21289e-06       
+0.000201166       
+2.30169e-08
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+1.d-10            
+-140.0
+140.0
+7720
+#------------------------------------------------------------------------------
+Bound_Jac
+numerical
+numerical 
+#------------------------------------------------------------------------------
+Stop
