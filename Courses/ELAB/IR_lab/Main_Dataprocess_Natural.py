@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from CSV_reader import CSV_reader
 import pdb
+from h_correlation import *
 
 plt.style.use("grayscale")
 
@@ -12,7 +13,7 @@ plt.style.use("grayscale")
 # ---------------------------------------
 
 # Specify the path to the folder containing your CSV file
-folder_natural_conv = '/home/jpe/VKI/ELAB/IR_lab/Data/Natural_convection'
+folder_natural_conv = '/home/jpe/VKI/Courses/ELAB/IR_lab/Data/Natural_convection'
 
 Images_natural = {}
 
@@ -120,16 +121,62 @@ T_list_naturalV = np.array(T_list_naturalV)
 T_list_naturalH = np.array(T_list_naturalH)
 matrix_TV = np.column_stack(T_list_naturalV)
 matrix_TH = np.column_stack(T_list_naturalH)
-np.savetxt('/home/jpe/VKI/ELAB/IR_lab/Matrices/matrix_TV.csv', matrix_TV, delimiter=',', header=','.join(keys_list_naturalV), comments='')
-np.savetxt('/home/jpe/VKI/ELAB/IR_lab/Matrices/matrix_TH.csv', matrix_TH, delimiter=',', header=','.join(keys_list_naturalH), comments='')
+np.savetxt('/home/jpe/VKI/Courses/ELAB/IR_lab/Matrices/matrix_TV.csv', matrix_TV, delimiter=',', header=','.join(keys_list_naturalV), comments='')
+np.savetxt('/home/jpe/VKI/Courses/ELAB/IR_lab/Matrices/matrix_TH.csv', matrix_TH, delimiter=',', header=','.join(keys_list_naturalH), comments='')
 
 # create the h matrix csv file
 h_list_naturalV = np.array(h_list_naturalV)
 h_list_naturalH = np.array(h_list_naturalH)
 matrix_hV = np.column_stack(h_list_naturalV)
 matrix_hH = np.column_stack(h_list_naturalH)
-np.savetxt('/home/jpe/VKI/ELAB/IR_lab/Matrices/matrix_hV.csv', matrix_hV, delimiter=',', header=','.join(keys_list_naturalV), comments='')
-np.savetxt('/home/jpe/VKI/ELAB/IR_lab/Matrices/matrix_hH.csv', matrix_hH, delimiter=',', header=','.join(keys_list_naturalH), comments='')
+np.savetxt('/home/jpe/VKI/Courses/ELAB/IR_lab/Matrices/matrix_hV.csv', matrix_hV, delimiter=',', header=','.join(keys_list_naturalV), comments='')
+np.savetxt('/home/jpe/VKI/Courses/ELAB/IR_lab/Matrices/matrix_hH.csv', matrix_hH, delimiter=',', header=','.join(keys_list_naturalH), comments='')
+
+# ========================================================================
+
+# Literature comparison
+# ---------------------
+
+T_full = np.array(matrix_TV[:,3])
+T_cut = T_full[0:120]
+T_avg = np.mean(T_cut)
+
+h_natural_lit = h_natural(T_avg)
+
+h_full = np.array(matrix_hV[:,3])
+h_cut = h_full[0:120]
+h_avg = np.mean(h_cut)
+
+err = np.abs(1 - h_avg/h_natural_lit)*100
+
+print()
+print("Natural convecion:")
+print("------------------")
+print()
+print("T : " + str(T_avg))
+print("h literature : " + str(h_natural_lit))
+print("h computed : " + str(h_avg))
+print("Relative error : " + str(err) + " %")
+
+T_forced_mean = 295.46
+vdot = 0.00236
+dist = 0.110
+
+h_forced_lit = h_forced(T_forced_mean,vdot,dist)
+
+h_forced_comp = 138.69
+
+err = np.abs(1 - h_forced_comp/h_forced_lit)*100
+
+print()
+print("Forced convecion:")
+print("------------------")
+print()
+print("T : " + str(T_forced_mean))
+print("h literature : " + str(h_forced_lit))
+print("h computed : " + str(h_forced_comp))
+print("Relative error : " + str(err) + " %")
+
 
 # ========================================================================
 # ========================================================================
@@ -144,7 +191,7 @@ np.savetxt('/home/jpe/VKI/ELAB/IR_lab/Matrices/matrix_hH.csv', matrix_hH, delimi
 # ========================================================================
 
 # scaling for plots
-scaling = 1
+scaling = 2
 
 yTV = np.linspace(0, matrix_TV.shape[0] - 1, matrix_TV.shape[0])
 yhV = np.linspace(0, matrix_hV.shape[0] - 1, matrix_hV.shape[0])
@@ -164,7 +211,7 @@ plt.xlabel("$T$ [K]")
 plt.ylabel("$y$ [mm]")
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-plt.savefig("/home/jpe/VKI/ELAB/IR_lab/Plots/natural_TV.pdf")
+plt.savefig("/home/jpe/VKI/Courses/ELAB/IR_lab/Plots/natural_TV.pdf")
 
 plt.figure()
 for i in range(matrix_hV.shape[1]):  # Loop over columns
@@ -176,7 +223,7 @@ plt.xlabel("$h$ [W/m$^2\\cdot$K]")
 plt.ylabel("$y$ [mm]")
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.legend()
-plt.savefig("/home/jpe/VKI/ELAB/IR_lab/Plots/natural_hV.pdf")
+plt.savefig("/home/jpe/VKI/Courses/ELAB/IR_lab/Plots/natural_hV.pdf")
 
 plt.figure()
 for i in range(matrix_TH.shape[1]):  # Loop over columns
@@ -188,7 +235,7 @@ plt.xlabel("$T$ [K]")
 plt.ylabel("$x$ [mm]")
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-plt.savefig("/home/jpe/VKI/ELAB/IR_lab/Plots/natural_TH.pdf")
+plt.savefig("/home/jpe/VKI/Courses/ELAB/IR_lab/Plots/natural_TH.pdf")
 plt.figure()
 
 plt.figure()
@@ -200,4 +247,4 @@ plt.xlabel("$h$ [W/m$^2\\cdot$K]")
 plt.ylabel("$x$ [mm]")
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.legend()
-plt.savefig("/home/jpe/VKI/ELAB/IR_lab/Plots/natural_hH.pdf")
+plt.savefig("/home/jpe/VKI/Courses/ELAB/IR_lab/Plots/natural_hH.pdf")

@@ -6,7 +6,7 @@ class const:
 
     # constants relative to experiment
     D = 0.46
-    T_inf = 22.5 + 273.15
+    T_inf = 19.6 + 273.15
     d_nozzle = 1.26e-2
 
     # tabulated values for air properties
@@ -43,7 +43,7 @@ def h_natural(Tw:float) -> float:
 
     return h
 
-def h_forced(T2:float, Vdot:float, r:float, dist:float) -> float:
+def h_forced(T2:float, Vdot:float, dist:float) -> float:
     # air properties at Tf
     Tf = (T2 + const.T_inf)/2
     visc = lin_interp(const.T_prop, const.viscosity, Tf)
@@ -51,7 +51,7 @@ def h_forced(T2:float, Vdot:float, r:float, dist:float) -> float:
     k = lin_interp(const.T_prop, const.conductivity, Tf)
 
     # correlation parameters
-    Ar = const.d_nozzle**2/(4*r**2)
+    Ar = const.d_nozzle**2/((6*const.d_nozzle)**2)
     if Ar < 0.004 or Ar > 0.04:
         print("Careful ! Ar = " + str(Ar) + " out of bounds [0.004, 0.04]")
 
@@ -66,6 +66,8 @@ def h_forced(T2:float, Vdot:float, r:float, dist:float) -> float:
     # correlation
     G = 2*Ar**(0.5) * (1-2.2*Ar**0.5)/(1 + 0.2*(H_D-6)*Ar**0.5)
     Nu = G * (2*Re**0.5*(1 + 0.005*Re**0.55)**0.5) * Pr**0.42
+    print(Nu)
+    Nu = 0.664 * np.sqrt(Re) * Pr**(1/3)
     
     return (k*Nu / const.d_nozzle)
 
