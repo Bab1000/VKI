@@ -1,12 +1,7 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Apr 15 10:41:19 2023
 
-@author: vromano
-"""
 
 import numpy as np
+import csv
 import math
 import os
 import csv
@@ -18,14 +13,6 @@ def fit_parabola(x, y):
     a, b, c = np.polyfit(x, y, 2)
     max_x = -b/(2*a)
     return max_x
-
-plt.close()
-plt.rc('text', usetex=True)       # This is for plot customization
-plt.rc('font', family='serif')
-plt.rc('lines', linewidth = 3)
-plt.rc('xtick',labelsize=18)
-plt.rc('ytick',labelsize=18)
-plt.rc('axes', labelsize=20)      # fontsize of the x and y labels 
 
 x_probe=0.871                     # Probe location [m]
 x_Torchexit=0.486
@@ -44,12 +31,12 @@ P=[100]
 
 
 # Path to files
-os.chdir('/home/jpe/VKI/Project/ICP_Enrico')
+#os.chdir('/mnt/c/Users/xavie/Documents/Unif Justin/VKI/Project/ICP_Roemer/results/full_sims')
+path_to_data = '/mnt/c/Users/xavie/Documents/Unif Justin/VKI/Project/ICP_Roemer/results/full_sims'
 
 # Create csv file
-import csv
 
-with open('Results/AllVariables_Manual.csv', 'w', newline='') as f:
+with open('Results/FS_15mbar_80kW_16gs_air.csv', 'w', newline='') as f:
     writer = csv.writer(f, delimiter=';')
     writer.writerow(['mdot [g/s]', 'ps [mbar]', 'Pel [kW]', 'u_Torchexit [m/s]', 'beta_Torchexit [1/s]', 
                      'T_Torchexit [K]', 'p_Torchexit [Pa]', 'rho_Torchexit [kg/m^3]', 'h_Torchexit [J/kg]', 
@@ -64,9 +51,9 @@ with open('Results/AllVariables_Manual.csv', 'w', newline='') as f:
 for i in P:
     Pel=i                            # Power [kW]
 
-    name_folder='m=' + str(mdot) + 'g_s, ps=' + str(math.trunc(ps/100)) + 'mbar, Pel=' + str(Pel) + 'kW'     # Name of the folder of simulation
+    name_folder= path_to_data + "/FS_15mbar_80kW_16gs_air.plt"     # Name of the folder of simulation
 
-    WithProbe = pd.read_table(name_folder + '/output/test_res.plt', sep='\s+', skiprows=np.arange(3),  names=['x', 'y', 'dp', 'u', 'v', 'Te', 'EpR', 'EpI', 'rho', 'H', 'M', 'xc0', 'xc1', 'xc2', 'xc3', 'xc4', 'xc5', 'xc6', 'xc7', 'xc8', 'xc9', 'xc10'])
+    WithProbe = pd.read_table(name_folder, sep='\s+', skiprows=np.arange(3),  names=['x', 'y', 'dp', 'u', 'v', 'Te', 'EpR', 'EpI', 'rho', 'H', 'M', 'xc0', 'xc1', 'xc2', 'xc3', 'xc4', 'xc5', 'xc6', 'xc7', 'xc8', 'xc9', 'xc10'])
     x=np.array(WithProbe.x)
     y=np.array(WithProbe.y)  
     u=np.array(WithProbe.u)
@@ -134,7 +121,6 @@ for i in P:
         for i in range(N):
             distance.append(np.sqrt((x[i]-target_coords[0])**2+(y[i]-target_coords[1])**2))
         closest_point_index.append(np.argmin(distance))
-    print(closest_point_index)
 
 # Coordinate of the first point with y-coordinate different from zero 
     x1=[]
@@ -146,11 +132,10 @@ for i in P:
         v1.append(v[closest_point_index[i]])
     v1_interp=np.interp(x_axis_sorted, x1, v1, left=None, right=None)
     y1_interp=np.interp(x_axis_sorted, x1, y1, left=None, right=None)
-    
 
 # Assessmente of Beta and its derivative with respect to x
 
-    beta=v1_interp/np.array(y1_interp)
+    beta=v1_interp/(np.array(y1_interp)+1e-6)
     dbetadx=np.zeros(NN)
     for i in np.arange(1, NN-1):
         dbetadx[i] = (beta[i+1]-beta[i-1])/(x_axis_sorted[i+1]-x_axis_sorted[i-1])                           # Second order first central derivative
@@ -236,12 +221,23 @@ for i in P:
 ################################ Write in a file ###########################################   
     result=[mdot, math.trunc(ps/100), Pel, u_Torchexit, beta_Torchexit, T_Torchexit, p_Torchexit, rho_Torchexit, H_Torchexit, u_freestream, beta_freestream, T_freestream, p_freestream, rho_freestream, H_freestream, delta_BL, u_BL, beta_BL, dbetadx_BL, T_BL, p_BL, rho_BL, H_BL, u_wall, beta_wall, T_wall, p_wall, rho_wall, H_wall, NDP1, NDP2, NDP3, NDP4, NDP5]
     
-    f = open('Results/AllVariables_Manual.csv', 'a')
+    f = open('Results/FS_15mbar_80kW_16gs_air.csv', 'a')
     writer = csv.writer(f, delimiter=';')
     writer.writerow(result)
     f.close()
     
 ############################## Plot ########################################################
+
+    
+    plt.close()
+    plt.rc('text', usetex=True)       # This is for plot customization
+    plt.rc('font', family='serif')
+    plt.rc('lines', linewidth = 3)
+    plt.rc('xtick',labelsize=18)
+    plt.rc('ytick',labelsize=18)
+    plt.rc('axes', labelsize=20)      # fontsize of the x and y labels 
+
+
     plt.figure()
     plt.suptitle(r'$p_s$ = {} mbar $\|$ $P$ = {} kW '.format(math.trunc(ps/100), Pel), fontsize=20)
     plt.subplot(2,1,1)
