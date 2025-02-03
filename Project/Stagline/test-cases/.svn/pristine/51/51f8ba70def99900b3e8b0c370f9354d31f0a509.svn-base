@@ -1,0 +1,108 @@
+Input data specified by the user: 
+
+simulation nameNitrogen_N_N2_frozen_mpp_EULER_d-7                                              
+
+physical model: neq                                                                             
+
+thermodynamic library: Mutationpp                                                                      
+
+thermodynamic library data path: none
+
+gamma:      1.40000000
+
+rgas:    287.06000000
+
+Prandtl number:      0.72000000
+
+Mixture name: N-N2_frozen                                                                     
+
+Reaction name: none                                                                            
+
+Transfer mechanism name: none                                                                            
+
+Number of species:    2
+
+Number of rotational temperatures:    0
+
+Number of vibrational temperatures:    0
+
+Number of free-electron electronic temperatures:    0
+
+Number of temperatures:    1
+
+Number of dimensions:    2
+
+Number of conservation equations:    5
+
+Inclusion of dissipation phenomena: F
+
+Flag stagnation line: T
+
+Stagnation line geometry:  1 - sphere
+
+Flux splitter: van_leer                                                                        
+
+Flux Jacobian approximation: Pos_Neg_split                                                                   
+
+Polynomial reconstruction: constant                                                                        
+
+Limiter function: van_albada1                                                                     
+
+Time discretization scheme: fi                                                                              
+
+Number of stages:    1
+
+Restart from a previous solution: F
+
+CFL number:      0.00100000
+
+VNN number:      0.00000000
+
+Time step:      0.00000000
+
+Tolerance on molar fraction      0.00000000
+
+Tolerance on diffusion velocity (only for analytical viscous Jacobians)      0.00000000
+
+Number of source terms:  2
+
+Source term  1 is: kinetics                                                                        
+
+Source term  2 is: inv_stag                                                                        
+
+Stop condition
+
+Residual value:     -7.00000000
+
+Print extra data: T
+
+Number of boundary conditions:  2
+
+Boundary condition on side  1 is: slip_wall                                                                       
+
+Boundary condition on side  2 is: sup_in                                                                          
+
+Boundary condition data: 
+
+bc  1 - slip_wall                                                                       
+
+No data specified
+
+bc  2 - sup_in                                                                          
+
+Inlet variable    1:          0.2806500000E-04
+
+Inlet variable    2:          0.5613000000E-04
+
+Inlet variable    3:         -0.1000000000E+05
+
+Inlet variable    4:          0.1000000000E+05
+
+Inlet variable    5:          0.3000000000E+03
+
+Boundary condition subroutine names: 
+
+Boundary condition 1 subroutine name: slip_wall                                                                       
+
+Boundary condition 2 subroutine name: sup_in                                                                          
+

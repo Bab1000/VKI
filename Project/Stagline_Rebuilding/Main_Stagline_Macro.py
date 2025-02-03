@@ -7,9 +7,9 @@ from Utils_Macro import *
 
 # Inputs
 # ------
-mixture = "air_5"
-n_species = "5"
-cfl_val = "1.0d-1"
+mixture = "air_11"
+n_species = "11"
+cfl_val = "1.0d-2"
 Twall = "350"
 cfl_adaptive = ".TRUE."
 cfl_inter = ".FALSE."
@@ -18,10 +18,11 @@ cfl_inter = ".FALSE."
 
 # Initial conditions
 # ------------------
-uin = -225.68437042842623
-vin = 225.68437042842623
-Txin = 5779.0
-Tyin = 5779.0
+uin = -377.15
+vin = 377.15
+Txin = 7237
+Tyin = 7237
+pc = 5000
 
 #-----------------------------
 
@@ -44,10 +45,9 @@ inputs["Twall"] = Twall
 inputs["Inter_CFL"] = cfl_inter
 inputs["Adaptive_CFL"] = cfl_adaptive
 
-
 # Gathering the species density
 # -----------------------------
-density = MPPDensities(Txin,101300,"air_5")
+density = MPPDensities(Txin,pc,mixture)
 
 # Initial conditions
 # ------------------
@@ -61,7 +61,7 @@ init_cond["Temperatures"] = np.array([Txin,Tyin])
 
 # Simulation name
 # ---------------
-sim_name = f"sim_T={Txin}_V={np.abs(uin):.2f}"
+sim_name = f"sim_T={Txin}_V={np.abs(uin):.2f}_{mixture}"
 inputs["Simulation_Name"] = sim_name
 
 # Runing script for input file modification

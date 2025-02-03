@@ -3,58 +3,57 @@ import os
 import subprocess
 import numpy as np
 
-def InputFileGenerator(sim_name, inputs,init_cond):
-    # Entering stagline folder
-
-    print("\033[94mModification of the input file for stagline simulation\033[0m")
-
-    folder_path = "/home/jpe/VKI/Project/Stagline/Simulations"
-
-    if os.path.isdir(folder_path):
-        print(f"    The folder {folder_path} exists ...")
-    else:
-       print("\033[91m" + f"The folder {folder_path} does not exist !" + "\033[0m")
-
-
+def InputFileGenerator(sim_name, inputs, init_cond):
+    """
+    Generate and modify the input file for a Stagline simulation.
+    """
+    print("\033[94mStarting input file modification for Stagline simulation...\033[0m")
     
-    # Creating working folder
-    sim_folder = str(sim_name)
-    sim_folder_path = folder_path + '/' + sim_folder 
-
+    folder_path = "/home/jpe/VKI/Project/Stagline/Simulations"
+    
+    if os.path.isdir(folder_path):
+        print(f"[INFO] Stagline directory found: {folder_path}")
+    else:
+        print("\033[91m[ERROR] Simulation directory not found!")
+        return None
+    
+    # Creating simulation folder
+    sim_folder_path = os.path.join(folder_path, sim_name)
     if not os.path.isdir(sim_folder_path):
         os.makedirs(sim_folder_path)
-        print(f"    The folder {sim_folder_path} has been created ...")
+        print(f"[INFO] Created simulation folder: {sim_folder_path}")
     else:
-        print(f"The folder {sim_folder_path} already exists ...")
-
-    # Cpying simulation files from the macro folder
+        print(f"\033[93m[WARNING] Simulation folder already exists: {sim_folder_path}\033[0m")
+    
+    # Copying necessary files from macro folder
     mixture = inputs.get("Mixture")
     macro_folder = "/home/jpe/VKI/Project/Stagline/Macro_folders" 
-    macro_input = macro_folder + "/Example_input_" + mixture
-    macro_mesh = macro_folder + "/mesh.dat"
-    shutil.copy(macro_input,sim_folder_path)
-    shutil.copy(macro_mesh,sim_folder_path)
-
-    # Modification to the input file
-    sim_input = sim_folder_path + "/Example_input_" + mixture
-    os.rename(sim_input,sim_folder_path + "/input")
-    sim_input = sim_folder_path + "/input"
-
-    with open(sim_input, "r") as input_file:
+    
+    try:
+        shutil.copy(os.path.join(macro_folder, f"Example_input_{mixture}"), sim_folder_path)
+        shutil.copy(os.path.join(macro_folder, "mesh.dat"), sim_folder_path)
+        print("[INFO] Reference files successfully copied.")
+    except FileNotFoundError:
+        print("\033[91m[ERROR] One or more reference files files are missing!\033[0m")
+        return None
+    
+    # Modifying the input file
+    sim_input = os.path.join(sim_folder_path, f"Example_input_{mixture}")
+    renamed_input = os.path.join(sim_folder_path, "input")
+    os.rename(sim_input, renamed_input)
+    
+    with open(renamed_input, "r") as input_file:
         lines = input_file.readlines()
-                    
+    
     for key, value in inputs.items():
-
         replace_inputs(lines, key, str(value))
     
-    replace_init_cond(lines,init_cond)
-
-    with open(sim_input, 'w') as input_file:
+    replace_init_cond(lines, init_cond)
+    
+    with open(renamed_input, 'w') as input_file:
         input_file.writelines(lines)
-
-    print("\033[92mThe input file has been successfully modified\033[0m")
-    print("")
-
+    
+    print("\033[92m[SUCCESS] Input file successfully modified.\033[0m\n")
     return sim_folder_path
 
 def replace_inputs(lines, keyword, new_value):

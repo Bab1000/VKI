@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Call the post processor to compute the radiation location data
+~/src/stagline/tools/post_processor/post_process
+
+# Put all the parts together for the rte1d input file
+points=`wc -l < rad_input.dat`
+cat <(echo "Number of points") <(expr $points - 5) rad_input.dat radiation_systems > radiation_input
+rm rad_input.dat
+
+# Run the radiation code
+~/src/radiation/codes/rte1d/rte1d radiation_input
+

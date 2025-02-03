@@ -1,7 +1,0 @@
-.DS_Store
-*.mod
-.vscode/
-bin/
-build/
-src/.vscode/
-src/config.h

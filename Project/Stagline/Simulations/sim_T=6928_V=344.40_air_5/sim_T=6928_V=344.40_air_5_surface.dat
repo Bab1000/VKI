@@ -1,0 +1,29 @@
+ Surface Properties
+             Wall Position [m]:   0.3500000E-01
+              Temperatures [K]:   0.3617418E+03
+                 Pressure [Pa]:   0.5943031E+04
+             Densities [kg/m3]:   0.1309468E-01  0.7792224E-02  0.6285856E-03  0.1565119E-01  0.2535142E-03
+                Mole Fractions:   0.4652350E+00  0.2423656E+00  0.1042481E-01  0.2780319E+00  0.3942592E-02
+                       u [m/s]:   0.0000000E+00
+                       v [m/s]:   0.0000000E+00
+                 q_cond [W/m2]:  -0.1986188E+07
+                 q_diff [W/m2]:   0.4074427E-08
+                 q_conv [W/m2]:  -0.1986188E+07
+                 q_rado [W/m2]:   0.8253258E+03
+                 q_radi [W/m2]:   0.0000000E+00
+                  q_rad [W/m2]:   0.8253258E+03
+                  q_tot [W/m2]:  -0.1985363E+07
+                 h_wall [J/kg]:   0.1523565E+08
+                mdot [kg/m2 s]:   0.0000000E+00
+              mdot_i [kg/m2 s]:   0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00  0.0000000E+00
+                dtau_dx [Pa/m]:   0.8899228E+03
+                dp_dxx [Pa/m2]:  -0.9702908E+07
+                          Mach:   0.0000000E+00
+ Edge Properties
+              BL_thickness [m]:   0.3889968E-02
+                 h_edge [J/kg]:   0.3726847E+08
+                 h_diff [J/kg]:   0.2203282E+08
+         Temperatures_edge [K]:   0.6844115E+04
+         Densitiy_edge [kg/m3]:   0.1548197E-02
+                  u_edge [m/s]:  -0.1711272E+03
+       heat_transfer_coeff [-]:   0.3402554E+00
