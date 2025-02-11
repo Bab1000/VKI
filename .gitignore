@@ -1,12 +1,15 @@
 # Ignorer des dossiers spécifiques (RELATIFS au repo)
-Courses/SP/Mendez_part/Results_exercise_1/
-Courses/SP/Mendez_part/Results_exercise_2/
-Courses/SP/Mendez_part/Results_exercise_3/
-Courses/SP/Mendez_part/Tutorial_5_2D_Cylinder_Memory_Saving/
 
 # Ignorer tous les fichiers d'un type particulier
 *.log
 *.tmp
+*.pdf
+*.png
+*.jpeg
+*.dat
+*.gif
+*.zip
+*.npz
 
 # Ignorer un fichier précis
-Courses/SP/Mendez_part/Snapshot_Matrices.npz
+
