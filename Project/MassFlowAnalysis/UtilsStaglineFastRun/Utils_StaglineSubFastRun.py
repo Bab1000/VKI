@@ -393,13 +393,13 @@ def RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_in
     command = stagline_exe_path
     process = subprocess.Popen(command, shell=True)  # Run asynchronously
 
-    plt.ion()  # Interactive mode ON
-    fig, ax = plt.subplots()
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Residual")
-    ax.set_title("Convergence Plot")
-    line, = ax.plot([], [], 'b-', label='Convergence')
-    ax.legend()
+    #plt.ion()  # Interactive mode ON
+    #fig, ax = plt.subplots()
+    #ax.set_xlabel("Iteration")
+    #ax.set_ylabel("Residual")
+    #ax.set_title("Convergence Plot")
+    #line, = ax.plot([], [], 'b-', label='Convergence')
+    #ax.legend()
 
     convergence_file_name = sim_name + "_convergence.dat"
     cfl_file_name = "cfl"

@@ -36,7 +36,7 @@ residual = -3.0
 # Restarting from previous simulation
 restart = ".FALSE."
 
-# Restart from previously converged air_5 simulation (True only if restart is True)
+# Restart from previously converged air_5 simulation (Can be turned to True only if restart is True)
 air_5_restart = ".FALSE."
 
 # Management of CFL
@@ -58,7 +58,6 @@ columns_to_check = ["Pressure[mbar]", "massflow [g/s]", "Power[kW]", "Pitot[Pa]"
 # Data loading
 pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 
-
 # ========================================================================
  
 # ----------------------------------------------
@@ -66,71 +65,81 @@ pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 # ----------------------------------------------
 
 # Target Pressure [mbar]
-target_pressure = 50
+target_pressure = [100]
 
 # Target Power [kW]
-target_power = [150,200,250,300,350]
+target_power = [200]
 
 # Tolerance
-tolerance = 3
+tolerance = 3.6
+
+# ========================================================================
+                
+# End of user configuration section
+# /!\ No modifications are required beyond this point /!\
+
+#############################################################################
+#############################################################################
+#############################################################################
+#############################################################################
+
 
 # Looping on the different conditions
-for i in enumerate(target_power):
+for h, targ_p in enumerate(target_pressure):
 
-    for j in enumerate(pressure):
+    for i, targ_P in enumerate(target_power):  # Unpacking enumerate properly
 
-        if pressure[j] >= target_pressure - tolerance and power[j] >= target_power - tolerance:
- 
-            # Temperature at the inlet [K]
-            Tin = temperature[j]
-            
-            # Static pressure of the chamber [Pa]
-            pc = pressure[j]
-            
-            # Radius of the probe [m]
-            R = 0.025
-            
-            # If velocity data is available, set these parameters accordingly.  
-            # Otherwise, assign to "None".  
-            uin = None  # [m/s]
-            vin = None  # [m/s]
-            
-            # If dynamic pressure data is available, set this parameter accordingly.  
-            # Otherwise, assign to "None".  
-            pdyn = pitot[j]   # [Pa]
+        for j, pres in enumerate(pressure):  # Unpacking enumerate properly
 
-            # Mass flow [g/s]
-            mdot = massflow[j]
+            if (pres >= targ_p - tolerance and pres <= targ_p + tolerance and
+                power[j] >= targ_P - tolerance and power[j] <= targ_P + tolerance):
+    
+                # Temperature at the inlet [K]
+                Tin = temperature[j]
+                
+                # Static pressure of the chamber [Pa]
+                pc = targ_p * 100
+                
+                # Radius of the probe [m]
+                R = 0.025
+                
+                # If velocity data is available, set these parameters accordingly.  
+                # Otherwise, assign to "None".  
+                uin = None  # [m/s]
+                vin = None  # [m/s]
+                
+                # If dynamic pressure data is available, set this parameter accordingly.  
+                # Otherwise, assign to "None".  
+                pdyn = pitot[j]   # [Pa]
 
-            # Power [kW]
-            Pw = power[j]
- 
-            # ========================================================================
+                # Mass flow [g/s]
+                mdot = massflow[j]
 
-            # -----------------------------------------------------------------------------
-            # | Paths to the simulation, "Template_files" folders and Stagline executable |
-            # -----------------------------------------------------------------------------
-            
-            # Simulation folder path
-            stagline_simulations_path = f"/home/jpe/VKI/Project/MassFlowAnalysis/PT615_Pc={pc}_Pw={Pw}/mdot={mdot}"
-            
-            # Input file template path
-            input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"
+                # Power [kW]
+                Pw = power[j]
+    
+                # ========================================================================
 
-            # Path to the stagline executable
-            stagline_exe_path = "/home/jpe/VKI/Project/Stagline/bin/stagline"
-            
-            # ========================================================================
-            
-            # End of user configuration section
-            # /!\ No modifications are required beyond this point /!\
-            
-            #############################################################################
-            #############################################################################
-            #############################################################################
-            #############################################################################
+                # -----------------------------------------------------------------------------
+                # | Paths to the simulation, "Template_files" folders and Stagline executable |
+                # -----------------------------------------------------------------------------
+                
+                # Simulation folder path
+                stagline_simulations_path = f"/home/jpe/VKI/Project/MassFlowAnalysis/air_5_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
+                
+                # Input file template path
+                input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"
 
-            StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,CFL_range,Iter,air_5_restart)
+                # Path to the stagline executable
+                stagline_exe_path = "/home/jpe/VKI/Project/Stagline/bin/stagline"
+
+                # ========================================================================
+
+                # ----------------------------------
+                # | Launch of Stagline simulatrion |
+                # ----------------------------------
+                                
+                StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,CFL_range,Iter,air_5_restart)
     
 
 
