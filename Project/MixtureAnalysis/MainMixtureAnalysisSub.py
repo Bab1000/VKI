@@ -11,10 +11,10 @@ import sys
 # ------
  
 # Name of the mixture
-mixture = "air_7"
+mixture = "air_5"
 
 # Number of species according to the mixture used
-n_species = "7"
+n_species = "5"
  
 # Initial value of the CFL
 cfl_val = "1.0d-3"
@@ -23,22 +23,22 @@ cfl_val = "1.0d-3"
 Twall = "350"
  
 # Method to change the CFL
-cfl_adaptive = ".FALSE."
-cfl_inter = ".TRUE."
+cfl_adaptive = ".TRUE."
+cfl_inter = ".FALSE."
 Log_CFL = ".FALSE."
 
 # Stop condition
 residual = -2.0
 
 # Restarting from previous simulation
-restart = ".TRUE."
+restart = ".FALSE."
 
 # Restart from previously converged air_5 simulation (True only if restart is True)
-air_5_restart = ".TRUE."
+air_5_restart = ".FALSE."
 
 # Management of CFL
-CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100, 500 ]
-Iter       = [   45,  95, 145, 195, 245, 295, 1095, 1495, 1995]
+CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  200,  500,  750, 1000, 5000, 10000]
+Iter       = [   45,  95, 145, 195, 245, 295, 595, 995, 2000, 2345, 2545, 2745, 2845,  2945]
 
 #CFL_range  = [0.01, 0.1,   1,  10, 100, 500, 1000]
 #Iter       = [  40,  90, 140, 190, 240, 540, 740]
@@ -54,7 +54,7 @@ Iter       = [   45,  95, 145, 195, 245, 295, 1095, 1495, 1995]
 # ------------------
  
 # Temperature at the inlet [K]
-T_test = [8200]
+T_test = np.arange(5000, 10001, 500)
  
 # Static pressure of the chamber [Pa]
 pc = 5000
@@ -69,32 +69,35 @@ vin = None  # [m/s]
  
 # If dynamic pressure data is available, set this parameter accordingly.  
 # Otherwise, assign to "None".  
-pdyn = 180   # [Pa]
+pdyn = 100   # [Pa]
  
 # ========================================================================
- 
-# Paths to the "Simulations" and "Template_files" folders in "Stagline"
-# ---------------------------------------------------------------------
- 
-# The user must create two separate folders inside the "Stagline" directory:
- 
-# 1) "Simulations" folder:
-#    - Must be inside the "Stagline" directory.
-#    - "Stagline" is the folder containing a "bin" folder with the Stagline executable and the "src" folder containing the source codes.
- 
-stagline_simulations_path = "/home/jpe/VKI/Project/Stagline/SimulationsMixtureAnalysis"
- 
-# 2) "Template_files" folder:
-#    - Must be inside the "Stagline" directory.
-#    - Must contain example input files for "air_5" and "air_11".
-#    - These files must be named:
-#        - Example_input_air_5
-#        - Example_input_air_11
-#    - Must contain The mesh.dat file.
- 
+
+# -----------------------------------------------------------------------------
+# | Paths to the simulation, "Template_files" folders and Stagline executable |
+# -----------------------------------------------------------------------------
+
+# Simulation folder path
+stagline_simulations_path = "/home/jpe/VKI/Project/MixtureAnalysis/Simulations"
+
+# Input file template path
 input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"
- 
+
+# Catalicity files path
+catalicity_files_path = "/home/jpe/VKI/Project/Stagline/Catalicity_files"
+
+# Path to the stagline executable
+stagline_exe_path = "/home/jpe/VKI/Project/Stagline/bin/stagline"
+
 # ========================================================================
+
+# --------------------------------------------------
+# | Visualistaion plot for the residuals behaviour |
+# --------------------------------------------------
+
+# Plot visualisation
+res_plot_visu = True
+
  
 # End of user configuration section
 # /!\ No modifications are required beyond this point /!\
@@ -106,7 +109,7 @@ input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"
 
 for T in T_test:
 
-    StaglineFastRunSubsonic(T,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,CFL_range,Iter,air_5_restart)
+    StaglineFastRunSubsonic(T,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,catalicity_files_path,CFL_range,Iter,air_5_restart,res_plot_visu)
     
 
 
