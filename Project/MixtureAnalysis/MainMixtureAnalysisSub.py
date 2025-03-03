@@ -11,10 +11,10 @@ import sys
 # ------
  
 # Name of the mixture
-mixture = "air_5"
+mixture = "air_11"
 
 # Number of species according to the mixture used
-n_species = "5"
+n_species = "11"
  
 # Initial value of the CFL
 cfl_val = "1.0d-3"
@@ -23,8 +23,8 @@ cfl_val = "1.0d-3"
 Twall = "350"
  
 # Method to change the CFL
-cfl_adaptive = ".TRUE."
-cfl_inter = ".FALSE."
+cfl_adaptive = ".FALSE."
+cfl_inter = ".TRUE."
 Log_CFL = ".FALSE."
 
 # Stop condition
@@ -96,7 +96,7 @@ stagline_exe_path = "/home/jpe/VKI/Project/Stagline/bin/stagline"
 # --------------------------------------------------
 
 # Plot visualisation
-res_plot_visu = True
+res_plot_visu = False
 
  
 # End of user configuration section

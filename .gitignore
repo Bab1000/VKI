@@ -1,4 +1,7 @@
 # Ignorer des dossiers spécifiques (RELATIFS au repo)
+Courses/NLAB/NLAB3/gmesh_source_code/
+
+Courses/NLAB/NLAB3/SU2_source_code/
 
 # Ignorer tous les fichiers d'un type particulier
 *.log
