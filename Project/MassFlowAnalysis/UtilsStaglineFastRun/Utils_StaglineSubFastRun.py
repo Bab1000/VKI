@@ -93,7 +93,7 @@ def UserInputsProcessing(Txin, pc, mixture, pdyn, uin, vin, R, n_species, cfl_va
     
     return inputs, init_cond, sim_name, mixture
 
-def InputFileGenerator(stagline_simulations_path, input_template_path, sim_name, inputs, init_cond,mixture,air_5_restart):
+def InputFileGenerator(stagline_simulations_path, input_template_path, catalicity_files_path, sim_name, inputs, init_cond,mixture,air_5_restart):
     """
     Generate and modify the input file for a Stagline simulation.
     """
@@ -125,10 +125,32 @@ def InputFileGenerator(stagline_simulations_path, input_template_path, sim_name,
         shutil.copy(os.path.join(input_template_path, "mesh.dat"), sim_folder_path)
         shutil.copy(os.path.join(input_template_path, "cfl"), sim_folder_path)
         shutil.copy(os.path.join(input_template_path, "cfl_history_log"), sim_folder_path)
-        print(Fore.WHITE + "   [INFO] Reference files successfully copied.")
+        print(Fore.WHITE + "   [INFO] Template files successfully copied.")
     except FileNotFoundError:
-        print(Fore.RED + "[ERROR] One or more reference files are missing!")
+        print(Fore.RED + "[ERROR] One or more template files are missing!")
         return None
+    
+    # Management of the catalicity files
+
+    # Template for mixture file
+    mixture_temp = f"{mixture}_{int(init_cond['Pressure']/100)}mbar.xml"
+
+    # Template for the mechanism_file
+    mechanism_temp = f"{mixture}_mech.xml"
+
+    # Template for catalicity file
+    catalicity_temp = f"gsi_surface_cat_{int(init_cond['Pressure']/100)}mbar.xml"
+
+    
+    try:
+        shutil.copy(os.path.join(catalicity_files_path, mixture_temp), sim_folder_path)
+        shutil.copy(os.path.join(catalicity_files_path, mechanism_temp), sim_folder_path)
+        shutil.copy(os.path.join(catalicity_files_path, catalicity_temp), sim_folder_path)
+        print(Fore.WHITE + "   [INFO] Mixture, mechanism and catalicity files successfully copied.")
+    except FileNotFoundError:
+        print(Fore.RED + "[ERROR] One or more mixture/mechanism/catalicity files are missing!")
+        return None
+
     
     # Renaming the input file
     sim_input = os.path.join(sim_folder_path, f"Example_input_sub_{mixture}")
@@ -380,7 +402,7 @@ def NumberToFortranNotation(value):
     
     return f"{mantissa:.1f}d{exponent}"
 
-def RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_inter):
+def RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_inter,res_plot_visu):
     print(Fore.BLUE + "[STEP] Running Stagline simulation...")
     
     if not os.path.isdir(sim_folder_path):
@@ -393,13 +415,14 @@ def RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_in
     command = stagline_exe_path
     process = subprocess.Popen(command, shell=True)  # Run asynchronously
 
-    #plt.ion()  # Interactive mode ON
-    #fig, ax = plt.subplots()
-    #ax.set_xlabel("Iteration")
-    #ax.set_ylabel("Residual")
-    #ax.set_title("Convergence Plot")
-    #line, = ax.plot([], [], 'b-', label='Convergence')
-    #ax.legend()
+    if(res_plot_visu == True):
+        plt.ion()  # Interactive mode ON
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Residual")
+        ax.set_title("Convergence Plot")
+        line, = ax.plot([], [], 'b-', label='Convergence')
+        ax.legend()
 
     convergence_file_name = sim_name + "_convergence.dat"
     cfl_file_name = "cfl"
@@ -441,23 +464,23 @@ def RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_in
             except Exception as e:
                 print(Fore.YELLOW + f"[WARNING] Error updating CFL: {e}")
 
-        # Update residuals plot
-        #try:
-        #    if os.path.exists(data_file):
-        #        data = np.loadtxt(data_file)
+        if res_plot_visu == True:
+            # Update residuals plot
+            try:
+                if os.path.exists(data_file):
+                    data = np.loadtxt(data_file)
+                    if data.size > 0 and data.shape[1] >= 5:
+                        x, y = data[:, 0], data[:, 4]  # Column 1 (x) and Column 5 (y)
+                        line.set_xdata(x)
+                        line.set_ydata(y)
+                        ax.relim()
+                        ax.autoscale_view()
+                        plt.draw()
+                        plt.pause(1)  # Refresh the plot every second
+            except Exception as e:
+                print(Fore.YELLOW + f"[WARNING] Could not update residual plot: {e}")
 
-        #        if data.size > 0 and data.shape[1] >= 5:
-        #            x, y = data[:, 0], data[:, 4]  # Column 1 (x) and Column 5 (y)
-        #            line.set_xdata(x)
-        #            line.set_ydata(y)
-        #            ax.relim()
-        #            ax.autoscale_view()
-        #            plt.draw()
-        #            plt.pause(1)  # Refresh the plot every second
-        #except Exception as e:
-        #    print(Fore.YELLOW + f"[WARNING] Could not update residual plot: {e}")
-
-        time.sleep(1)  # Prevents excessive CPU usage
+            time.sleep(1)  # Prevents excessive CPU usage
 
 
 

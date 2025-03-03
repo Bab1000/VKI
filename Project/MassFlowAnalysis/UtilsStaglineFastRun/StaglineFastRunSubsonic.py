@@ -1,6 +1,6 @@
 from UtilsStaglineFastRun.Utils_StaglineSubFastRun import *
 
-def StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,CFL_range,Iter,air_5_restart):
+def StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,catalicity_files_path,CFL_range,Iter,air_5_restart,res_plot_visu):
     # -----------------------------------------------
     # | START OF THE SCRIPT FOR STAGLINE SIMULATION |
     # -----------------------------------------------
@@ -11,8 +11,8 @@ def StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twal
     
     # Runing script for input file modification
     # -----------------------------------------
-    sim_folder_path = InputFileGenerator(stagline_simulations_path,input_template_path,sim_name,inputs,init_cond,mixture,air_5_restart)
+    sim_folder_path = InputFileGenerator(stagline_simulations_path,input_template_path,catalicity_files_path,sim_name,inputs,init_cond,mixture,air_5_restart)
     
     # Stagline simulation
     # -------------------
-    RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_inter)
+    RunStagline(sim_folder_path,sim_name,stagline_exe_path,CFL_range,Iter,cfl_inter,res_plot_visu)

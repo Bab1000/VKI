@@ -31,7 +31,7 @@ cfl_inter = ".FALSE."
 Log_CFL = ".FALSE."
 
 # Stop condition
-residual = -3.0
+residual = -2.0
 
 # Restarting from previous simulation
 restart = ".FALSE."
@@ -39,9 +39,9 @@ restart = ".FALSE."
 # Restart from previously converged air_5 simulation (Can be turned to True only if restart is True)
 air_5_restart = ".FALSE."
 
-# Management of CFL
-CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100, 500 ]
-Iter       = [   45,  95, 145, 195, 245, 295, 1095, 1495, 1995]
+# Management of CFL (air_7 15mbar)
+CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
+Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
  
 # ========================================================================
 
@@ -65,10 +65,10 @@ pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 # ----------------------------------------------
 
 # Target Pressure [mbar]
-target_pressure = [100]
+target_pressure = [15,50,100]
 
 # Target Power [kW]
-target_power = [200]
+target_power = [150,200,250,300,350]
 
 # Tolerance
 tolerance = 3.6
@@ -133,13 +133,25 @@ for h, targ_p in enumerate(target_pressure):
                 # Path to the stagline executable
                 stagline_exe_path = "/home/jpe/VKI/Project/Stagline/bin/stagline"
 
+                # Catalicity files path
+                catalicity_files_path = "/home/jpe/VKI/Project/Stagline/Catalicity_files"
+
+                # ========================================================================
+
+                # --------------------------------------------------
+                # | Visualistaion plot for the residuals behaviour |
+                # --------------------------------------------------
+
+                # Plot visualisation
+                res_plot_visu = True
+
                 # ========================================================================
 
                 # ----------------------------------
                 # | Launch of Stagline simulatrion |
                 # ----------------------------------
                                 
-                StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,CFL_range,Iter,air_5_restart)
+                StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,catalicity_files_path,CFL_range,Iter,air_5_restart,res_plot_visu)
     
 
 
