@@ -14,10 +14,10 @@ import sys
 # ------
  
 # Name of the mixture
-mixture = "air_5"
+mixture = "air_11"
 
 # Number of species according to the mixture used
-n_species = "5"
+n_species = "11"
  
 # Initial value of the CFL
 cfl_val = "1.0d-3"
@@ -34,14 +34,18 @@ Log_CFL = ".FALSE."
 residual = -2.0
 
 # Restarting from previous simulation
-restart = ".FALSE."
+restart = ".TRUE."
 
-# Restart from previously converged air_5 simulation (Can be turned to True only if restart is True)
-air_5_restart = ".FALSE."
+# Restart from previously converged air_7 simulation (Can be turned to True only if restart is True)
+air_5_restart = ".TRUE."
 
 # Management of CFL (air_7 15mbar)
+#CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
+#Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
+
+# Management of CFL (air_11 15mbar)
 CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
-Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
+Iter       = [   45,  95, 145, 195, 245, 595, 795, 1245, 1445, 1745, 1845, 1995]
  
 # ========================================================================
 
@@ -65,7 +69,7 @@ pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 # ----------------------------------------------
 
 # Target Pressure [mbar]
-target_pressure = [15,50,100]
+target_pressure = [100]
 
 # Target Power [kW]
 target_power = [150,200,250,300,350]
@@ -74,15 +78,6 @@ target_power = [150,200,250,300,350]
 tolerance = 3.6
 
 # ========================================================================
-                
-# End of user configuration section
-# /!\ No modifications are required beyond this point /!\
-
-#############################################################################
-#############################################################################
-#############################################################################
-#############################################################################
-
 
 # Looping on the different conditions
 for h, targ_p in enumerate(target_pressure):
@@ -125,7 +120,7 @@ for h, targ_p in enumerate(target_pressure):
                 # -----------------------------------------------------------------------------
                 
                 # Simulation folder path
-                stagline_simulations_path = f"/home/jpe/VKI/Project/MassFlowAnalysis/air_5_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
+                stagline_simulations_path = f"/home/jpe/VKI/Project/MassFlowAnalysis/{mixture}_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
                 
                 # Input file template path
                 input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"

@@ -182,11 +182,12 @@ def InputFileGenerator(stagline_simulations_path, input_template_path, catalicit
     return sim_folder_path
 
 def RestartFromPreviousSim(stagline_simulations_global_path, sim_name, mixture):
-    # Getting the initial file path of the air_5 simulation
-    old_sim_name = sim_name.replace(mixture, "air_5") 
+    # Getting the initial file path of the air_7 simulation
+    old_sim_name = sim_name.replace(mixture, "air_7") 
     old_sim_folder = os.path.join(stagline_simulations_global_path, old_sim_name)
+    old_sim_folder = old_sim_folder.replace(mixture, "air_7") 
 
-    print(Fore.WHITE + f"   [INFO] Looking for air_5 restart files in: {old_sim_folder}")
+    print(Fore.WHITE + f"   [INFO] Looking for air_7 restart files in: {old_sim_folder}")
 
     # Define the search patterns
     pattern1 = "*restart.dat"
@@ -208,8 +209,9 @@ def RestartFromPreviousSim(stagline_simulations_global_path, sim_name, mixture):
 
         try:
             # Define new filenames by replacing "air_5" with "air_7"
-            new_file1_name = os.path.basename(file1).replace("air_5", mixture)
-            new_file2_name = os.path.basename(file2).replace("air_5", mixture)
+            new_file1_name = os.path.basename(file1).replace("air_7", mixture)
+            new_file2_name = os.path.basename(file2).replace("air_7", mixture)
+            print(new_file1_name)
 
             # Define full paths for copied and renamed files
             new_file1_path = os.path.join(current_sim_folder, new_file1_name)
@@ -219,13 +221,13 @@ def RestartFromPreviousSim(stagline_simulations_global_path, sim_name, mixture):
             shutil.copy(file1, new_file1_path)
             shutil.copy(file2, new_file2_path)
 
-            print(Fore.GREEN + f"   [SUCCESS] air_5 restart files copied and renamed successfully")
+            print(Fore.GREEN + f"   [SUCCESS] air_7 restart files copied and renamed successfully")
 
         except Exception as e:
-            print(Fore.RED + f"   [ERROR] The air_5 restart files couldn't be copied or renamed: {e}")
+            print(Fore.RED + f"   [ERROR] The air_7 restart files couldn't be copied or renamed: {e}")
 
     else:
-        print(Fore.RED + f"   [ERROR] air_5 restart files were not found in: {old_sim_folder}")
+        print(Fore.RED + f"   [ERROR] air_7 restart files were not found in: {old_sim_folder}")
 
 
     # Read the file1 into a DataFrame
@@ -234,9 +236,11 @@ def RestartFromPreviousSim(stagline_simulations_global_path, sim_name, mixture):
     # Define the new columns with the required value
     new_col1 = np.full((df.shape[0],), 1.0000000000E-10)
     new_col2 = np.full((df.shape[0],), 1.0000000000E-10)
+    new_col3 = np.full((df.shape[0],), 1.0000000000E-10)
+    new_col4 = np.full((df.shape[0],), 1.0000000000E-10)
 
     # Insert the new columns at the beginning
-    df = pd.concat([pd.DataFrame({0: new_col1, 1: new_col2}), df], axis=1)
+    df = pd.concat([pd.DataFrame({0: new_col1, 1: new_col2, 2: new_col3, 3: new_col4}), df], axis=1)
 
     # Save the modified file, preserving the format and without headers
     df.to_csv(new_file1_path, sep=" ", index=False, header=False, float_format="%.10E")
@@ -247,9 +251,11 @@ def RestartFromPreviousSim(stagline_simulations_global_path, sim_name, mixture):
     # Define the new columns with the required value
     new_col1 = np.full((df.shape[0],), 1.0000000000E-10)
     new_col2 = np.full((df.shape[0],), 1.0000000000E-10)
+    new_col3 = np.full((df.shape[0],), 1.0000000000E-10)
+    new_col4 = np.full((df.shape[0],), 1.0000000000E-10)
 
     # Insert the new columns at the beginning
-    df = pd.concat([pd.DataFrame({0: new_col1, 1: new_col2}), df], axis=1)
+    df = pd.concat([pd.DataFrame({0: new_col1, 1: new_col2, 2: new_col3, 3: new_col4}), df], axis=1)
 
     # Save the modified file, preserving the format and without headers
     df.to_csv(new_file2_path, sep=" ", index=False, header=False, float_format="%.10E")
