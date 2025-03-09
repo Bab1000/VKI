@@ -1,0 +1,91 @@
+<!--
+model of Dunn & Kang
+-->
+<mechanism name="air_7_mech">
+
+    <arrhenius_units A="mol,cm,s,K" E="kcal,mol,K" />
+
+    <reaction formula="O2+N=2O+N">
+        <arrhenius A="1.099e+15" n="-1.0" T="59500.0" />
+    </reaction>
+
+    <reaction formula="O2+NO=2O+NO">
+        <arrhenius A="2.812e+18" n="-1.0" T="59500.0" />
+    </reaction>
+
+    <reaction formula="O2+O=2O+O">
+        <arrhenius A="8.496e+18" n="-1.0" T="59500.0" />
+    </reaction>
+
+    <reaction formula="O2+O2=2O+O2">
+        <arrhenius A="6.020e+17" n="-1.0" T="59500.0" />
+    </reaction>
+
+    <reaction formula="O2+N2=2O+N2">
+        <arrhenius A="1.957e+15" n="-1.0" T="59500.0" />
+    </reaction>
+
+    <reaction formula="N2+O=2N+O">
+        <arrhenius A="1.760e+17" n="-0.5" T="113000.0" />
+    </reaction>
+
+    <reaction formula="N2+NO=2N+NO">
+        <arrhenius A="6.283e+19" n="-0.5" T="113000.0" />
+    </reaction>
+
+    <reaction formula="N2+O2=2N+O2">
+        <arrhenius A="5.695e+15" n="-0.5" T="113000.0" />
+    </reaction>
+
+    <reaction formula="N2+N=2N+N">
+        <arrhenius A="2.309e+20" n="-1.5" T="113000.0" />
+    </reaction>
+
+    <reaction formula="N2+N2=2N+N2">
+        <arrhenius A="1.996e+17" n="-0.5" T="113000.0" />
+    </reaction>
+
+    <reaction formula="NO+O2=N+O+O2">
+        <arrhenius A="3.256e+22" n="-1.5" T="75500.0" />
+    </reaction>
+
+    <reaction formula="NO+N2=N+O+N2">
+        <arrhenius A="1.804e+22" n="-1.5" T="75500.0" />
+    </reaction>
+
+    <reaction formula="NO+O=N+O+O">
+        <arrhenius A="3.828e+21" n="-1.5" T="75500.0" />
+    </reaction>
+
+    <reaction formula="NO+N=N+O+N">
+        <arrhenius A="1.953e+20" n="-1.5" T="75500.0" />
+    </reaction>
+
+    <reaction formula="NO+NO=N+O+NO">
+        <arrhenius A="1.352e+20" n="-1.5" T="75500.0" />
+    </reaction>
+
+    <reaction formula="NO+O=O2+N">
+        <arrhenius A="2.696e+10" n="1.0" T="19700.0" />
+    </reaction>
+
+    <reaction formula="N2+O=NO+N">
+        <arrhenius A="5.890e+12" n="0.0" T="38000.0" />
+    </reaction>
+
+    <reaction formula="N+O=NO++e-">
+        <arrhenius A="6.484e+05" n="1.5" T="31900.0" />
+    </reaction>
+
+    <reaction formula="O2+N2=NO+NO++e-">
+        <arrhenius A="6.497e+20" n="-1.84" T="141000.0" />
+    </reaction>
+
+    <reaction formula="N2+NO=N2+NO++e-">
+        <arrhenius A="2.429e+18" n="-0.35" T="108000.0" />
+    </reaction>
+
+    <reaction formula="O2+NO=NO++O2+e-">
+        <arrhenius A="3.800e+16" n="-0.35" T="108000.0" />
+    </reaction>
+</mechanism>

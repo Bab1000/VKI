@@ -1,0 +1,1 @@
+g++ mpp.cpp -o exe -I$MPP_DIRECTORY/install/include/mutation++ -I/$MPP_DIRECTORY/thirdparty/eigen -L$MPP_DIRECTORY/install/lib64 -lmutation++

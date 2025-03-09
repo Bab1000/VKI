@@ -13,6 +13,9 @@ Courses/NLAB/NLAB3/SU2_source_code/
 *.gif
 *.zip
 *.npz
+*.csv
+*.vtk
 
 # Ignorer un fichier précis
 
+Project/CatalicitySurrogateModel/StaglineSurrogateModel/SM/SM_heatFlux

@@ -1,0 +1,22 @@
+<!--
+Park air5 reaction mechanism
+Rates taken from:
+    1) Park et al., JTHT 15(1):76-90, 2001.
+    2) Park, JTHT 7(3):385-398, 1993.
+-->
+<mechanism name="air_5_Park">
+
+    <arrhenius_units A="mol,cm,s,K" E="kcal,mol,K" />
+
+    <!-- Park, 2001 -->
+    <reaction formula="O2+O=2O+O">
+        <arrhenius A="1.0E+22" n="-1.5" T="59360.0" />
+    </reaction>
+
+    <reaction formula="O2+O2=2O+O2">
+        <arrhenius A="2.0E+21" n="-1.5" T="59360.0" />
+    </reaction>
+
+</mechanism>
+
+
