@@ -85,7 +85,7 @@ def CSVReader(CSV_path,columns_to_check):
 
 def FlowfieldReader(flowfield_path):
     # Reading the CSV file with all the data
-    df = pd.read_csv(flowfield_path, delim_whitespace=True, header=None, skiprows=4)
+    df = pd.read_csv(flowfield_path, sep=r'\s+', header=None, skiprows=4)
 
     # Gathering the data
     mesh = df.iloc[:,0].tolist()

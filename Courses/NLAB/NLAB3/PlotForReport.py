@@ -1,109 +1,191 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os
+import pandas as pd
+import re
 
-plt.rc('text', usetex=True)
-plt.rc('font', family='serif')  
-plt.rc('axes', unicode_minus=False)
+# --------------
+# | QUESTION 2 |
+# --------------
 
-#%% Inlet Profile (Reference Mesh)
-inlet = np.loadtxt('inlet.dat', skiprows=5)
+# Gather results for plots in mesh study path and for mesh = 10023
 
-plt.plot(inlet[:,1], inlet[:,3], linewidth=1.5)
-plt.xlabel('y [m]', fontsize=18)
-plt.ylabel('U(0,y) [m/s]', fontsize=18)
-plt.xticks(fontsize=18)
-plt.yticks(fontsize=18)
+# Read the data
+file_path = "/home/jpe/VKI/Courses/NLAB/NLAB3/MeshStudy/10023/history.csv"  # Change this to your file path
+df = pd.read_csv(file_path, skipinitialspace=True)
+df.columns = df.columns.str.strip()
+
+resP = df["rms[P]"]
+resU = df["rms[U]"]
+resV = df["rms[V]"]
+CFL = df["Avg CFL"]
+iter = df["Inner_Iter"]
+ 
+# Plotting results
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+ax1.plot(iter, resP, label="Pressure",linewidth=2,)
+ax1.plot(iter, resU, label="U",linewidth=2,)
+ax1.plot(iter, resV, label="V",linewidth=2,)
+ax1.set_xlabel('Iterations')
+ax1.set_ylabel('Residuals')
+ax1.grid(True)
+
+ax2 = ax1.twinx()
+ax2.plot(iter, CFL, label="CFL", color="red",linewidth=2, linestyle="dashed")
+ax2.set_ylabel('CFL')
+
+fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
+
+plt.title('Residuals and CFL vs Iterations')
+plt.savefig("/home/jpe/VKI/Courses/NLAB/NLAB3/Figures/Res_CFL_vs_iter.png", format='png', dpi=300, bbox_inches='tight')
+ 
+# =========================================================================================
+
+# --------------
+# | QUESTION 5 |
+# --------------
+
+# Mesh study
+
+# Numbers of elements in the meshes studied
+nbr_elem = [3576, 7062, 10023]
+
+# Creating storing vectors
+Cl_val_vec = []
+Cd_val_vec = []
+
+# Loop on the number of mesh studied
+for mesh_nbr in nbr_elem:
+
+    # Path of the SU2 simulation
+    Sim_path = f"/home/jpe/VKI/Courses/NLAB/NLAB3/MeshStudy/{mesh_nbr}/"
+
+    # Forces file
+    Force_file_path = Sim_path + "forces_breakdown.dat"
+
+    # Initialisation des valeurs
+    total_Cl = None
+    total_Cd = None
+
+    with open(Force_file_path, "r", encoding="utf-8") as file:
+        for line in file:
+            match_Cl = re.search(r"Total CL:\s*([-+]?\d*\.\d+)", line)
+            match_Cd = re.search(r"Total CD:\s*([-+]?\d*\.\d+)", line)
+
+            if match_Cl:
+                total_Cl = float(match_Cl.group(1))
+
+            if match_Cd:
+                total_Cd = float(match_Cd.group(1))
+
+            if total_Cl is not None and total_Cd is not None:
+                break
+
+    if total_Cl is not None and total_Cd is not None:
+        print(f"For element number = {mesh_nbr}: CL = {total_Cl} | CD = {total_Cd}")
+    else:
+        print(f"No CL values found in {Force_file_path}")
+
+    # Ajout aux listes
+    Cl_val_vec.append(total_Cl)
+    Cd_val_vec.append(total_Cd)
+
+# Plotting results
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+ax1.plot(nbr_elem, Cl_val_vec,linewidth=2, label="CL values")
+ax1.set_xlabel("Number of elements in the mesh")
+ax1.set_ylabel("CL Value")
+ax1.tick_params(axis='y')
+ax1.grid(True)
+
+ax2 = ax1.twinx()
+ax2.plot(nbr_elem, Cd_val_vec, linewidth=2, color="orange", label="CD values")
+ax2.set_ylabel("CD Value")
+ax2.tick_params(axis='y')
+
+fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
+
+plt.title('Aerodynamic coefficients vs number of elements in the mesh')
+plt.xticks(nbr_elem, ["8116", "12178", "15523"])
+plt.savefig("/home/jpe/VKI/Courses/NLAB/NLAB3/Figures/Mesh_study.png", format='png', dpi=300, bbox_inches='tight')
+
+
+# =========================================================================================
+
+# --------------
+# | QUESTION 6 |
+# --------------
+
+# Path of the SU2 simulation for CFL strategy study
+Sim_path = f"/home/jpe/VKI/Courses/NLAB/NLAB3/CFLStrategyStudy/"
+
+history_file_path = Sim_path + "history_adapt.csv"
+
+df = pd.read_csv(history_file_path, skipinitialspace=True)
+df.columns = df.columns.str.strip()
+
+resP = df["rms[P]"]
+resU = df["rms[U]"]
+resV = df["rms[V]"]
+CFL = df["Avg CFL"]
+iter = df["Inner_Iter"]
+ 
+# Plotting results
+# Create figure and axes
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+ax2 = ax1.twinx()
+ax2.plot(iter, CFL, label="CFL", color="red", linestyle="dashed", linewidth=2, alpha=0.3, zorder=1)
+ax2.set_ylabel('CFL')
+
+# Plot residuals (foreground)
+ax1.plot(iter, resP, label="Pressure", linewidth=2, zorder=2)
+ax1.plot(iter, resU, label="U", linewidth=2, zorder=2)
+ax1.plot(iter, resV, label="V", linewidth=2, zorder=2)
+ax1.set_xlabel('Iterations')
+ax1.set_ylabel('Residuals')
+ax1.grid(True)
+
+# Add legend
+fig.legend(loc="upper right", bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
+
+# Title and save the plot
+plt.title('Residuals and CFL vs Iterations')
+plt.savefig("/home/jpe/VKI/Courses/NLAB/NLAB3/Figures/Adaptive_CFL.png", format='png', dpi=300, bbox_inches='tight')
+
+
+# =========================================================================================
+
+# --------------
+# | QUESTION 7 |
+# --------------
+
+
+# Path of the SU2 simulation for CFL strategy study
+Sim_path = f"/home/jpe/VKI/Courses/NLAB/NLAB3/UnsteadyCorentin/"
+
+history_file_path = Sim_path + "history.csv"
+
+df = pd.read_csv(history_file_path, skipinitialspace=True)
+df.columns = df.columns.str.strip()
+
+CD = df["CD"]
+CL = df["CL"]
+iter = df["Time_Iter"]
+
+plt.figure(figsize=(10,6))
+plt.plot(iter[30:]/20,CD[30:])
+plt.xlabel("Time [s]")
+plt.ylabel("CD [-]")
 plt.grid(True)
-plt.show()
+plt.savefig("/home/jpe/VKI/Courses/NLAB/NLAB3/Figures/CD_unsteady.png", format='png', dpi=300, bbox_inches='tight')
 
-#%% Convegerce Reference Mesh (hi/h1=2): Residuals vs Iterations vs CFL
-history = np.loadtxt('history.txt', skiprows=2)
-
-fig, ax1 = plt.subplots()
-# Plot Residuals
-l1 = ax1.plot(history[:,0], history[:,1], linewidth=1.5, label="Pressure")
-l2 = ax1.plot(history[:,0], history[:,2], linewidth=1.5, label="U-component")
-l3 = ax1.plot(history[:,0], history[:,3], linewidth=1.5, label="V-component")
-# Labels and styling for Residuals
-ax1.set_xlabel('Iterations', fontsize=18)
-ax1.set_ylabel('Residuals', fontsize=18)
-ax1.tick_params(axis='both', labelsize=18)
-ax1.grid(True)
-# Plot CFL
-ax2 = ax1.twinx()
-l4 = ax2.axhline(y=100, color='r', linestyle='-', linewidth=1.5, label='CFL')
-# Labels for CFL
-ax2.set_ylabel('CFL', fontsize=18)
-ax2.tick_params(axis='y', labelsize=18)
-# Combine legends from both axes
-lines = l1 + l2 + l3 + [l4] 
-labels = [line.get_label() for line in lines]
-ax1.legend(lines, labels, fontsize=18)
-plt.show()
-
-#%% Grid Convergence Study
-CL = np.array([0.01364198587, 0.01007849909, 0.01043424399]) # Splitting refinement
-CD = np.array([5.657852877, 5.617917356, 5.585568726])       # Splitting refinement
-# CL = np.array([0.01364198587, 0.01007849909, 0.01017546143])  # Doubling Ncells
-# CD = np.array([5.657852877, 5.617917356, 5.621656999])
-x_values = [4, 2, 1]
-
-# Plot CL
-fig, ax = plt.subplots()
-ax.semilogy(x_values, CL, 'o-', linewidth=1.5)
-ax.set_xlabel('$h_{i}/h_{1}$', fontsize=18)
-ax.set_ylabel('$C_L$', fontsize=18)
-ax.set_xticks(x_values)
-ax.set_xticklabels(['4', '2', '1'], fontsize=16)
-ax.set_yticks(CL)
-ax.set_yticklabels([f'{v:.4f}' for v in CL], fontsize=18)
-ax.yaxis.set_minor_locator(plt.NullLocator())  
-ax.grid(True)
-plt.show()
-
-# Plot CD
-fig, ax = plt.subplots()
-ax.semilogy(x_values, CD, 'o-', linewidth=1.5)
-ax.set_xlabel('$h_{i}/h_{1}$', fontsize=18)
-ax.set_ylabel('$C_D$', fontsize=18)
-ax.set_xticks(x_values)
-ax.set_xticklabels(['4', '2', '1'], fontsize=18)
-ax.set_yticks(CD)
-ax.set_yticklabels([f'{v:.4f}' for v in CD], fontsize=18)
-ax.yaxis.set_minor_locator(plt.NullLocator())  
-ax.grid(True)
-plt.show()
-
-#%% Adaptive CFL - h2 (Reference Mesh)
-path = r"C:\Users\User\Desktop\VKI - RM\Lectures\NLAB1\HM_3\CFL_Adaptive\h2"
-os.chdir(path)
-
-history_CFL_adpt = np.loadtxt('history.txt', skiprows=2)
-
-fig, ax1 = plt.subplots()
-# Plot Residuals
-l1 = ax1.plot(history_CFL_adpt[:,0], history_CFL_adpt[:,1], linewidth=1.5, label="Pressure")
-l2 = ax1.plot(history_CFL_adpt[:,0], history_CFL_adpt[:,2], linewidth=1.5, label="U-component")
-l3 = ax1.plot(history_CFL_adpt[:,0], history_CFL_adpt[:,3], linewidth=1.5, label="V-component")
-# Labels and styling for Residuals
-ax1.set_xlabel('Iterations', fontsize=18)
-ax1.set_ylabel('Residuals', fontsize=18)
-ax1.tick_params(axis='both', labelsize=18)
-ax1.grid(True)
-# Plot CFL
-ax2 = ax1.twinx()
-l4 = ax2.plot(history_CFL_adpt[:,0], history_CFL_adpt[:,4], linewidth=1.5, alpha=0.3, label="CFL")
-# Labels for CFL
-ax2.set_ylabel('CFL', fontsize=18)
-ax2.tick_params(axis='y', labelsize=18)
-# Combine legends from both axes
-lines = l1 + l2 + l3 + l4 
-labels = [line.get_label() for line in lines]
-legend = ax1.legend(lines, labels, fontsize=18, loc='best', frameon=True)
-legend.set_zorder(100)  
-plt.show()
-
-#%% Unsteady 
+plt.figure(figsize=(10,6))
+plt.plot(iter[30:]/20,CL[30:])
+plt.xlabel("Time [s]")
+plt.ylabel("CL [-]")
+plt.grid(True)
+plt.savefig("/home/jpe/VKI/Courses/NLAB/NLAB3/Figures/CL_unsteady.png", format='png', dpi=300, bbox_inches='tight')
 
 

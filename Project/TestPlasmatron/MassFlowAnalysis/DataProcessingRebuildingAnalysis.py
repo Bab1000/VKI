@@ -14,8 +14,8 @@ R = 0.025
 
 # Paths for data processing
 glob_path = {
-    "air_5": "/home/jpe/VKI/Project/MassFlowAnalysis/air_5_sim",
-    "air_7": "/home/jpe/VKI/Project/MassFlowAnalysis/air_7_sim"
+    "air_5": "/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/air_5_sim",
+    "air_7": "/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/air_7_sim"
 }
 
 # Store results
@@ -28,7 +28,7 @@ for press in targ_p:
 
     # ========================================================================
     # -------------------------------------------
-    # | GATHERING HF/H/BL EDGE FROM SYRFACE FILE|
+    # | GATHERING HF/H/BL EDGE FROM SURFACE FILE|
     # -------------------------------------------
 
             # Building pattern for folders and files
@@ -123,7 +123,7 @@ for press in targ_p:
     # -----------------------------------
 
     # Path to the CSV
-    CSV_path = "/home/jpe/VKI/Project/MassFlowAnalysis/tests_Justin.xlsx"
+    CSV_path = "/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/tests_Justin.xlsx"
 
     # Define the columns to check for NaN values
     columns_to_check = ["Pressure[mbar]", "massflow [g/s]", "Power[kW]", "HeatFlux(HS50mm)[kW/m2]", "Pitot[Pa]", "T [K] (x = 375mm, r = 0mm)"]
@@ -154,12 +154,17 @@ for press in targ_p:
         exp_HF_data[mdot] = np.array(exp_HF_data[mdot])
         T_mdot_data[mdot] = np.array(T_mdot_data[mdot])
 
+    # Sorting based on exp_HF_data while keeping T_mdot_data aligned
+    for mdot in exp_HF_data:
+        sorted_indices = np.argsort(exp_HF_data[mdot])  # Get sorted indices
+        exp_HF_data[mdot] = exp_HF_data[mdot][sorted_indices]  # Sort exp_HF_data
+        T_mdot_data[mdot] = T_mdot_data[mdot][sorted_indices]  # Align T_mdot_data
 
 
     # ========================================================================
-    # ------------------ 
-    # | PLOTTING q_tot | 
-    # ------------------
+    # ----------------------- 
+    # | PLOTTING q_tot vs T | 
+    # -----------------------
 
     # Initialize subplots (3 rows, 1 column, sharing X-axis)
     fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(10, 12), sharex=True)
@@ -207,9 +212,73 @@ for press in targ_p:
     axes[-1].set_xlabel("Temperature T (K)", fontsize=12)
 
     # Save the figure
-    comparison_plot_path = os.path.join("/home/jpe/VKI/Project/MassFlowAnalysis/Results_Rebuilding", f"HFComparison_Pc={press}.jpeg")
+    comparison_plot_path = os.path.join("/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Heat_flux/", f"HFComparison_vs_T_Pc={press}.jpeg")
     plt.savefig(comparison_plot_path, format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
 
+    # ========================================================================
+    # ---------------------------- 
+    # | PLOTTING q_tot vs h_edge | 
+    # ----------------------------
+
+    # Loop through each mdot value and plot in its corresponding subplot
+    for i, mdot in enumerate([10, 16, 20]):
+
+        # Initialize plots 
+        fig, axes = plt.subplots(figsize=(6, 6))
+
+        # Define line styles for each air type
+        line_styles = {"air_5": "--", "air_7": "--"}  # Solid for air_5, dashed for air_7
+
+        # Define colors for each mdot value (consistent across both datasets)
+        mdot_colors = {10: 'tab:blue', 16: 'tab:orange', 20: 'tab:green'}  
+
+        line_width = 2  # Increase line width for simulation data
+        
+        # Plot simulation data first (so experimental data appears on top)
+        for label in df["Label"].unique():
+            df_label = df[df["Label"] == label]
+            df_mdot = df_label[df_label["mdot"] == mdot]
+            
+            if not df_mdot.empty:
+                plt.plot(df_mdot["h_edge"]/1e6, np.abs(df_mdot["q_tot"]) / 1000, 
+                        linestyle=line_styles[label], 
+                        marker='o', markersize=7,  
+                        color=mdot_colors[mdot], 
+                        linewidth=line_width,  
+                        label=f"{label} - Simulation")
+
+                # Check if the sizes are different
+                size_x = len(df_mdot["h_edge"])
+                size_y = len(exp_HF_data[mdot])
+
+        if size_y > size_x:
+            exp_HF_data_corr = exp_HF_data[mdot][1:]  # Keep only the first values to match the size
+        else:
+            exp_HF_data_corr = exp_HF_data[mdot] # Keep all values if sizes are equal
+
+
+        # Plot experimental data (scatter plot, on top of simulation curves)
+        plt.scatter(df_mdot["h_edge"]/1e6, np.abs(exp_HF_data_corr), 
+            color=mdot_colors[mdot], marker='D', 
+            s=80, edgecolor='black', linewidths=2,  
+            alpha=0.9, zorder=3,  
+            label="Experimental Data")
+        
+        # Configure subplot
+        plt.ylabel("q_tot (kW/m²)", fontsize=12)
+        plt.title(f"mdot = {mdot} g/s", fontsize=12)
+        plt.grid(True, linestyle='--', linewidth=0.7)
+        plt.legend(fontsize=10, loc="upper left", frameon=True)
+        #plt.xlim([10, 45])
+        #plt.ylim([500, 3200])
+
+        # Global X-label
+        plt.xlabel("Enthalpy at BL edge (MJ/kg)", fontsize=12)
+
+        # Save the figure
+        comparison_plot_path = os.path.join("/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Heat_flux/", f"HFComparison_vs_h_edge_Pc={press}_mdot={mdot}.jpeg")
+        plt.savefig(comparison_plot_path, format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
+        plt.close()
 
 
     # ========================================================================
@@ -232,10 +301,10 @@ for press in targ_p:
         ax.set_ylabel("h_edge (MJ/kg)")
         ax.set_title(f"mdot = {mdot} g/s")
         ax.grid(True, linestyle='--', linewidth=0.7)
-        ax.legend()
+        
     
     axes_hedge[-1].set_xlabel("Temperature T (K)")
-    plt.savefig(f"/home/jpe/VKI/Project/MassFlowAnalysis/Results_Rebuilding/h_edgeComparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
+    plt.savefig(f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Enthalpy/h_edgeComparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
 
     # ========================================================================
     # -------------------
@@ -260,7 +329,7 @@ for press in targ_p:
         ax.legend()
     
     axes_beta[-1].set_xlabel("Temperature T (K)")
-    plt.savefig(f"/home/jpe/VKI/Project/MassFlowAnalysis/Results_Rebuilding/betaComparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
+    plt.savefig(f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Beta/betaComparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
 
     # ========================================================================
     # -------------------
@@ -285,6 +354,6 @@ for press in targ_p:
         ax.legend()
     
     axes_p0[-1].set_xlabel("Temperature T (K)")
-    plt.savefig(f"/home/jpe/VKI/Project/MassFlowAnalysis/Results_Rebuilding/p0Comparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
+    plt.savefig(f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Pressure/p0Comparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
     
     all_results.clear()

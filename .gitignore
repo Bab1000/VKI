@@ -15,7 +15,20 @@ Courses/NLAB/NLAB3/SU2_source_code/
 *.npz
 *.csv
 *.vtk
+*.xlsx
+*.su2
 
 # Ignorer un fichier précis
 
 Project/CatalicitySurrogateModel/StaglineSurrogateModel/SM/SM_heatFlux
+Project/MachineLearning/GeneticAlgorithm/KRGModel/SM_Gamma_Log
+Project/MachineLearning/GeneticAlgorithm/KRGModel/SM_heatFlux
+Project/MachineLearning/StaglineSurrogateModel/Models/SM_Gamma_Log
+Project/MachineLearning/StaglineSurrogateModel/Models/SM_heatFlux
+Project/MachineLearning/StaglineSurrogateModel/Models/SM_heatFlux_test
+Courses/SP/Assignment/Mendez_part/SP_Assignment_Justin_Pesesse.pptx
+Project/Stagline/test-cases/.svn/pristine/18/18c65fb32039cb92104e0861cbc993fcb9c35d97.svn-base
+Project/Stagline/test-cases/.svn/pristine/98/981229b5a2cfdf6b01f037b211511d75a7ffc676.svn-base
+Project/Stagline/tools/post_processor/StagLineSol.o
+Project/Stagline/tools/post_processor/post_process.dSYM/Contents/Resources/DWARF/post_process
+Project/Stagline/tools/post_processor/post_process.o

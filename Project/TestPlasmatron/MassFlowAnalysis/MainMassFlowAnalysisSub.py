@@ -14,10 +14,10 @@ import sys
 # ------
  
 # Name of the mixture
-mixture = "air_5"
+mixture = "air_7"
 
 # Number of species according to the mixture used
-n_species = "5"
+n_species = "7"
  
 # Initial value of the CFL
 cfl_val = "1.0d-3"
@@ -26,15 +26,15 @@ cfl_val = "1.0d-3"
 Twall = "350"
  
 # Method to change the CFL
-cfl_adaptive = ".TRUE."
-cfl_inter = ".FALSE."
+cfl_adaptive = ".FALSE."
+cfl_inter = ".TRUE."
 Log_CFL = ".FALSE."
 
 # Stop condition
 residual = -2.0
 
 # Restarting from previous simulation
-restart = ".FALSE."
+restart = ".TRUE."
 
 # Restart from previously converged air_7 simulation (Can be turned to True only if restart is True)
 air_5_restart = ".FALSE."
@@ -43,9 +43,13 @@ air_5_restart = ".FALSE."
 #CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
 #Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
 
-# Management of CFL (air_11 15mbar)
+# Management of CFL (air_7) WITH RESTART FILES
 CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
-Iter       = [   45,  95, 145, 195, 245, 595, 795, 1245, 1445, 1745, 1845, 1995]
+Iter       = [   45,  95, 145, 195, 245, 295, 395, 495,  595, 695,  795, 895]
+
+# Management of CFL (air_11 15mbar)
+#CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
+#Iter       = [   45,  95, 145, 195, 245, 595, 795, 1245, 1445, 1745, 1845, 1995]
  
 # ========================================================================
 
@@ -54,7 +58,7 @@ Iter       = [   45,  95, 145, 195, 245, 595, 795, 1245, 1445, 1745, 1845, 1995]
 # ------------------------------
 
 # Path to the CSV
-CSV_path = "/home/jpe/VKI/Project/MassFlowAnalysis/tests_Justin.xlsx"
+CSV_path = "/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/tests-mass-flow-Justin.xlsx"
 
 # Define the columns to check for NaN values
 columns_to_check = ["Pressure[mbar]", "massflow [g/s]", "Power[kW]", "Pitot[Pa]", "T [K] (x = 375mm, r = 0mm)"]
@@ -69,10 +73,10 @@ pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 # ----------------------------------------------
 
 # Target Pressure [mbar]
-target_pressure = [200]
+target_pressure = [15]
 
 # Target Power [kW]
-target_power = [300,350]
+target_power = [150]
 
 # Tolerance
 tolerance = 3.6
@@ -120,7 +124,10 @@ for h, targ_p in enumerate(target_pressure):
                 # -----------------------------------------------------------------------------
                 
                 # Simulation folder path
-                stagline_simulations_path = f"/home/jpe/VKI/Project/MassFlowAnalysis/{mixture}_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
+                stagline_simulations_path = f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/{mixture}_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
+
+                # Restart Simulation folder path
+                stagline_restart_simulations_path = f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/{mixture}_sim_old/Pc={targ_p}_Pw={targ_P}/mdot={mdot}/*"
                 
                 # Input file template path
                 input_template_path = "/home/jpe/VKI/Project/Stagline/Template_files"
@@ -146,7 +153,7 @@ for h, targ_p in enumerate(target_pressure):
                 # | Launch of Stagline simulatrion |
                 # ----------------------------------
                                 
-                StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,input_template_path,stagline_exe_path,catalicity_files_path,CFL_range,Iter,air_5_restart,res_plot_visu)
+                StaglineFastRunSubsonic(Tin,pc,mixture,pdyn,uin,vin,R,n_species,cfl_val,Twall,cfl_inter,cfl_adaptive,Log_CFL,residual,restart,stagline_simulations_path,stagline_restart_simulations_path,input_template_path,stagline_exe_path,catalicity_files_path,CFL_range,Iter,air_5_restart,res_plot_visu)
     
 
 
