@@ -9,6 +9,9 @@ import sys
 import warnings
 from collections import defaultdict
 import re
+import scipy.stats as stats
+import matplotlib.cm as cm
+import os
 
 # Initialize colorama
 init(autoreset=True)
@@ -26,7 +29,7 @@ class BayesianInversion:
             
             print(Fore.WHITE + "---> [INFO] Building initialization ...")
 
-            self.y = y                         # Output features
+            self.y = y                         # Observed features
             self.priors = []                   # Prior distributions
             self.observed = []                 # Observed distributions
             self.model = None                  # Bayesian model
@@ -54,18 +57,21 @@ class BayesianInversion:
                         # Gathering distribution infos
                         name = dist["name"]
                         dist_type = dist["type"]
-                        mu = dist.get("mu", 0)
-                        uncertainty = dist.get("uncertainty", 1)
+                        mu = dist.get("mu")
+                        uncertainty = dist.get("uncertainty")
+                        lower = dist.get("lower")
+                        upper = dist.get("upper")
 
                         # Construction of normal distribution
-                        if dist_type == "normal":
-                            sigma = max(uncertainty / 1.96, 1e-2)
+                        if dist_type == "normal" and (mu is not None and uncertainty is not None):
+                            # Computation of standard deviation (95%)
+                            sigma = max(uncertainty / 1.96, 1e-3)
+                            # Building normal distribution
                             var = pm.Normal(name, mu=mu, sigma=sigma)
 
                         # Construction of normal distribution
-                        elif dist_type == "uniform":
-                            lower = mu 
-                            upper = uncertainty 
+                        elif dist_type == "uniform" and (lower is not None and upper is not None):
+                            # Building uniform distribution
                             var = pm.Uniform(name, lower=lower, upper=upper)
 
                         else:
@@ -81,52 +87,66 @@ class BayesianInversion:
                 # --------------------------------------------------
 
                 try:
-                    # Check if this is a vectorized case (multiple outputs)
+                    # Check if this is a vectorized case (multiple outputs --> Check if 1D vector with more than one entry)
                     if len(np.shape(self.y)) == 1 and len(self.y) > 1:
                         print(Fore.WHITE + "---> [INFO] Detected vectorized setup (multiple experiment)")
 
+                        # Building the instance linking pyMC with SMT
                         Stagline_SM = SMStaglineVectorized(self.forward_model)
 
                         # Check for grouped variables by their TC number or global variables
                         grouped_vars = defaultdict(list)
                         global_vars = defaultdict(list)
+
+                        # Patter of test case number for multiple experiments recognition
                         pattern = r"TC=(\d+)"
 
                         for name in model.named_vars:
+                            # Search for the pattern in the distribution's name
                             match = re.search(pattern, name)
                             if match:
+                                # Gathering test case number
                                 tc_number = int(match.group(1))
+                                # Grouping distribution by TC number 
                                 grouped_vars[tc_number].append(name)
                             else:
+                                # Taking the distribution as global one if no TC number is recognized
                                 global_vars["global"].append(name)
 
 
                         # Sort TC keys to keep consistent order
                         sorted_tc = sorted(grouped_vars.keys())
                         print(Fore.WHITE + f"---> [INFO] Grouped {len(sorted_tc)} Test Cases sets for vectorized modeling")
-
+                        
+                        # Building the input matrix for surrogate model
                         input_matrix = []
+                        # Gather infos for each test case
                         for tc in sorted_tc:
                             row = []
                             for var_name in grouped_vars[tc]:
+                                # Gather each distribution of the test case
                                 var = model.named_vars.get(var_name)
                                 if var is None:
                                     raise ValueError(f"Prior '{var_name}' not found in model.")
-                                
+                                # Appending the values in the matrix
                                 vec = pt.flatten(var)[0].dimshuffle(())
                                 row.append(vec)
 
 
                             # Append global variables 
                             for var_name in global_vars["global"]:
+                                # Gathering each global distribution 
                                 var = model.named_vars.get(var_name)
+                                # Appending the values in the matrix
                                 vec = pt.flatten(var)[0].dimshuffle(())
                                 row.append(vec)
                             
-                            # input row in input matrix
+                            # Creating the global input matrix for the surrogate model
                             input_matrix.append(pt.stack(row))
-
+                        
+                        # Creating a pytensor input for the SMTStaglineVectorized class
                         SM_input = pt.stack(input_matrix, axis=0)  # shape: (n_exp, n_inputs)
+                        # Prediction of the output of the model
                         SM_prediction = Stagline_SM(SM_input)
 
                     else:
@@ -134,14 +154,19 @@ class BayesianInversion:
                         print(Fore.WHITE + "---> [INFO] Detected scalar setup (single experiment)")
                         Stagline_SM = SMStagline(self.forward_model)
 
+                        # Gathering the prior distributions
                         prior_var_list = []
                         for name in model.named_vars:
+                            # Gathering the values for each prior distributions
                             var = model.named_vars.get(name)
                             if var is None:
                                 raise ValueError(f"Prior distribution '{name}' not found in model.")
+                            # Building the input vector for the SMT surrogate model
                             prior_var_list.append(pt.flatten(var))
 
+                        # Creating a pytensor input for the SMTStaglineVectorized class
                         SM_input = pt.concatenate(prior_var_list, axis=0)  # shape: (n_inputs,)
+                        # Prediction of the output of the model
                         SM_prediction = Stagline_SM(SM_input)
 
 
@@ -163,19 +188,21 @@ class BayesianInversion:
                             # Gathering distribution infos
                             name = dist["name"]
                             dist_type = dist["type"]
-                            mu = dist.get("mu", 0)
-                            uncertainty = dist.get("uncertainty", 1)
+                            mu = dist.get("mu")
+                            uncertainty = dist.get("uncertainty")
+                            lower = dist.get("lower")
+                            upper = dist.get("upper")
 
                             # Construction of normal distribution
-                            if dist_type == "normal":
+                            if dist_type == "normal" and (mu is not None and uncertainty is not None):
+                                # Computation of standard deviation (95%)
                                 sigma = max(uncertainty / 1.96, 1e-2)
                                 # Uses Stagline SM for the observed quantities
                                 var = pm.Normal(name, mu=SM_prediction[counter], sigma=sigma, observed = self.y[counter])
 
                             # Construction of normal distribution
-                            elif dist_type == "uniform":
-                                lower = mu 
-                                upper = uncertainty 
+                            elif dist_type == "uniform" and (lower is not None and upper is not None):
+                                # Bulding uniform distribution
                                 var = pm.Uniform(name, lower=lower, upper=upper, observed = self.y[counter])
 
                             else:
@@ -192,14 +219,18 @@ class BayesianInversion:
 
                             # Construction of normal distribution
                             if dist_type == "normal":
+                                # Computation of standard deviation (95%)
                                 sigma = max(uncertainty / 1.96, 1e-2)
                                 # Uses Stagline SM for the observed quantities
                                 var = pm.Normal(name, mu=SM_prediction, sigma=sigma, observed = self.y)
 
                             # Construction of normal distribution
                             elif dist_type == "uniform":
+                                # Lower bound
                                 lower = mu 
+                                # Upper bound
                                 upper = uncertainty 
+                                # Building uniform distribution
                                 var = pm.Uniform(name, lower=lower, upper=upper, observed = self.y)
 
                             else:
@@ -217,13 +248,13 @@ class BayesianInversion:
             print(Fore.RED + f"---> [ERROR] Model building failed: {e}")
             sys.exit(1)
     
-    def add_priors(self, name, distribution="normal", mu=None, uncertainty=None):
+    def add_priors(self, name, distribution="normal", mu=None, uncertainty=None, lower = None, upper = None):
         try:
             distribution = distribution.lower()
 
             if distribution == "normal" and (mu is None or uncertainty is None):
                 raise ValueError("mu and uncertainty must be provided for a Normal distribution.")
-            if distribution == "uniform" and uncertainty is None:
+            if distribution == "uniform" and (lower is None or upper is None):
                 raise ValueError("uncertainty must be provided for a Uniform distribution.")
 
             # On stocke la définition de la distribution dans une liste
@@ -231,7 +262,9 @@ class BayesianInversion:
                 "name": name,
                 "type": distribution,
                 "mu": mu,
-                "uncertainty": uncertainty
+                "uncertainty": uncertainty,
+                'lower': lower,
+                "upper": upper
             })
 
             print(Fore.WHITE + f"---> [INFO] Prior {distribution.capitalize()} distribution registered : {name}")
@@ -240,7 +273,7 @@ class BayesianInversion:
             print(Fore.RED + f"---> [ERROR] Failed to register distribution '{name}': {e}")
             sys.exit(1)
 
-    def add_observed(self, name, distribution="normal", mu=None, uncertainty=None):
+    def add_observed(self, name, distribution="normal", mu=None, uncertainty=None, lower = None, upper = None):
         try:
             distribution = distribution.lower()
 
@@ -254,7 +287,9 @@ class BayesianInversion:
                 "name": name,
                 "type": distribution,
                 "mu": mu,
-                "uncertainty": uncertainty
+                "uncertainty": uncertainty,
+                'lower': lower,
+                "upper": upper
             })
 
             print(Fore.WHITE + f"---> [INFO] Observed {distribution.capitalize()} distribution registered : {name}")
@@ -306,42 +341,116 @@ class BayesianInversion:
 
             print(Fore.GREEN + "---> [SUCCESS] Computation successfully completed !")
 
-            # === Autosave ===
-            if save_path:
-                az.to_netcdf(self.posteriors, save_path)
-                print(Fore.WHITE + f"---> [INFO] Posterior autosaved to '{save_path}'")
+            # === Autosave for posteriors ===
+            self.save_trace(save_path=save_path)
 
-            return self.posteriors
+            # === Premilinary data analysis ===
+            map_values, R_hat_all = self.priliminary_analysis()
+
+            return self.posteriors, map_values, R_hat_all
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Inference failed: {e}")
 
-    def plot_posteriors(self):
-        print(Fore.BLUE + "[STEP] Plotting the posterior samples")
-        try:
-            if self.posteriors is None:
-                raise RuntimeError("No posteriors available. Run inference first.")
-            az.plot_trace(self.posteriors)
-            plt.savefig("Results/Posteriors.jpeg",  format='jpeg', dpi=300, bbox_inches='tight')
-            print(Fore.GREEN + "---> [SUCCESS] Posteriors plot displayed !")
-        except Exception as e:
-            print(Fore.RED + f"---> [ERROR] Plotting failed: {e}")
-            sys.exit(1)
+    def save_trace(self,save_path=None):
+        # === Autosave ===
+        if save_path:
+            # Check for existence of directory
+            parent = os.path.dirname(save_path)
+            if not os.path.exists(parent):
+                os.makedirs(parent, exist_ok=True)
 
-    def plot_posteriors_custom(self, prior_names=None, name_image = None):
+            # Saving subsamples of the trace to for memmory saving
+            idata = self.posteriors
+
+            # Total number of points
+            n_total = idata.posterior.sizes["chain"] * idata.posterior.sizes["draw"]
+
+            # Keeping only 10000 points
+            n_target = n_total//1000
+            if n_target < n_total and n_target > 1000:
+                print(Fore.WHITE + f"---> [INFO] Keeping {n_target} points in the trace for saving ...")
+                step = max(1, n_total // n_target) # total division
+
+                # Sous-échantillonnage
+                idata_thinned = idata.sel(draw=slice(None, None, step))
+
+                # Enregistrement
+                az.to_netcdf(idata_thinned, save_path)
+                print(Fore.WHITE + f"---> [INFO] Posterior autosaved to {save_path} ...")
+            else:
+                print(Fore.YELLOW + f"---> [WARNING] Keeping all points for posteriors saving !")
+                az.to_netcdf(self.posteriors, save_path)
+                print(Fore.WHITE + f"---> [INFO] Posterior autosaved to {save_path} ...")
+
+    def priliminary_analysis(self):
+
+        # === MAP computation ===
+        print(Fore.WHITE + "---> [INFO] Computing MAP values ...")
+        # Building dictionnary
+        map_values = {}
+        # Gathering posteriors
+        data_posteriors = self.posteriors.posterior
+
+        # Computaing MAP
+        for var in data_posteriors.data_vars:
+            samples = data_posteriors[var].values.flatten()
+            map_values[var] = self.get_MAP(samples)
+
+        # === Rhat computation ===
+        print(Fore.WHITE + "---> [INFO] Computing Gelman-Rubin diagnostic (R̂) ...")
+        posterior = self.posteriors.posterior  
+        R_hat_all = {}
+
+        for var_name in posterior.data_vars:
+            values = posterior[var_name].values  # shape: [chain, draw, *dims]
+
+            # Dimensions : [chain, draw]
+            J = values.shape[0]  # nb chains
+            L = values.shape[1]  # nb draws
+
+            # Transpose to [draw, chain] 
+            X = values.T  # shape: [L, J]
+
+            # Mean per chains
+            x_j = np.mean(X, axis=0)           # [J]
+            x_star = np.mean(x_j)              # scalar
+
+            # Variance between chains
+            B = (L / (J - 1)) * np.sum((x_j - x_star)**2)
+
+            # Variance inside chains (mean of variances for each chains)
+            W = np.mean(np.var(X, axis=0, ddof=1))
+
+            # R-hat computation
+            Var_hat = ((L - 1) / L) * W + (1 / L) * B
+            R_hat = Var_hat / W
+
+            R_hat_all[var_name] = R_hat
+            print(Fore.MAGENTA + f"[RESULTS] R̂ for {var_name}: {R_hat:.5f}")
+        
+        return map_values,R_hat_all
+
+    def get_MAP(self,samples):
+        # Computing MAP
+        kde = stats.gaussian_kde(samples)
+        x_vals = np.linspace(min(samples), max(samples), 1000)
+        densities = kde(x_vals)
+        return x_vals[np.argmax(densities)]
+
+    def plot_posteriors_custom(self, save_path,ext):
         print(Fore.BLUE + "[STEP] Plotting posterior traces & PDFs per chain (custom)")
         try:
             if self.posteriors is None:
                 raise RuntimeError("No posteriors available. Run inference first.")
-
-            import scipy.stats as stats
-            import matplotlib.cm as cm
+            
+            if not os.path.exists(save_path):
+                os.makedirs(save_path, exist_ok=True)  
 
             print(Fore.WHITE + "---> [INFO] Gathering posteriors data ...")
 
             posterior = self.posteriors.posterior
 
-            if prior_names is None:
-                prior_names = list(posterior.data_vars)
+            prior_names = list(posterior.data_vars)
 
             n = len(prior_names)
             n_chains = posterior.sizes["chain"]
@@ -354,31 +463,35 @@ class BayesianInversion:
 
             print(Fore.WHITE + "---> [INFO] Plotting Posterior results ...")
             for i, name in enumerate(prior_names):
-                # Accès aux échantillons par chaîne
+                # === Nouvelle fonctionnalité : figure individuelle ===
+                fig_indiv, axs_indiv = plt.subplots(1, 2, figsize=(12, 4))
                 for c in range(n_chains):
                     chain_samples = posterior[name].sel(chain=c).values.flatten()
 
-                    # Traceplot
-                    axes[i][0].plot(chain_samples, label=f"Chain {c}", alpha=0.8, color=colors[c % len(colors)])
-
-                    # PDF (KDE)
+                    axs_indiv[0].plot(chain_samples, label=f"Chain {c}", alpha=0.8, color=colors[c % len(colors)])
                     try:
                         density = stats.gaussian_kde(chain_samples)
                         x_vals = np.linspace(np.min(chain_samples), np.max(chain_samples), 300)
-                        axes[i][1].plot(x_vals, density(x_vals), label=f"Chain {c}", color=colors[c % len(colors)])
-                        axes[i][1].fill_between(x_vals, density(x_vals), alpha=0.2, color=colors[c % len(colors)])
+                        axs_indiv[1].plot(x_vals, density(x_vals), label=f"Chain {c}", color=colors[c % len(colors)])
+                        axs_indiv[1].fill_between(x_vals, density(x_vals), alpha=0.2, color=colors[c % len(colors)])
                     except Exception as kde_error:
-                        print(f"[WARN] KDE failed for {name}, chain {c}: {kde_error}")
+                        print(f"[WARN] KDE failed (indiv) for {name}, chain {c}: {kde_error}")
 
-                axes[i][0].set_title(f"Trace - {name}")
-                axes[i][0].set_ylabel("Value")
+                axs_indiv[0].set_title(f"Trace - {name}")
+                axs_indiv[0].set_ylabel("Value")
+                axs_indiv[0].legend()
 
-                axes[i][1].set_title(f"PDF - {name}")
-                axes[i][1].set_ylabel("Density")
+                axs_indiv[1].set_title(f"PDF - {name}")
+                axs_indiv[1].set_ylabel("Density")
 
-            plt.tight_layout()
-            plt.savefig(name_image, format="jpeg", dpi=300, bbox_inches="tight")
-            print(Fore.GREEN + "---> [SUCCESS] Posterior plots Successfully saved !")
+                plt.tight_layout()
+
+                file_name = f"{name}.{ext}"
+                full_path = os.path.join(save_path, file_name)
+                plt.savefig(full_path, format=ext, dpi=300, bbox_inches="tight")
+                print(Fore.WHITE + f"---> [INFO] Saved individual posterior plot: {file_name}")
+
+                plt.close(fig_indiv)
 
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Manual plotting failed: {e}")

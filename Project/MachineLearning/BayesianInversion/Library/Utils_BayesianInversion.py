@@ -3,6 +3,7 @@ import numpy as np
 from smt.surrogate_models import KRG
 import sys
 from colorama import Fore, Style, init
+import os
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
@@ -57,3 +58,22 @@ def LoadModel(model_path):
     except Exception as e:
         print(Fore.RED + f"---> [ERROR] Failed to load model '{model_path}': {e}")
         sys.exit(1)
+
+
+def SaveAnalysis(save_path_results,MAP_values,R_hat_all):
+    # Merge the two dictionaries into a single DataFrame
+    all_keys = sorted(set(MAP_values.keys()) | set(R_hat_all.keys()))
+
+    data = {
+        "Variable": all_keys,
+        "MAP": [MAP_values.get(k, None) for k in all_keys],
+        "R_hat": [R_hat_all.get(k, None) for k in all_keys]
+    }
+
+    df = pd.DataFrame(data)
+
+    # Create the results folder if it doesn't exist
+    os.makedirs(save_path_results, exist_ok=True)
+
+    # Save the merged DataFrame as CSV
+    df.to_csv(os.path.join(save_path_results, "Preliminary_analysis.csv"), index=False)

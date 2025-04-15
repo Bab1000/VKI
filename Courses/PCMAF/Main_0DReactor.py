@@ -1,0 +1,51 @@
+from Utils_0DReactor import *
+import matplotlib.pyplot as plt
+
+
+# === Compilation + Loading of the model ===
+
+cpp_file = "/home/jpe/VKI/Courses/PCMAF/0DReactor/0DReactor.cpp"
+exe_file = "0DReactor.so"
+mutationpp_include = "/home/jpe/Mutationpp/src"
+eigen_include = "/home/jpe/Mutationpp/thirdparty/eigen"
+lib_path = "/home/jpe/Mutationpp/build/src"
+lib_name = "-lmutation++"
+
+Load0DReactor(cpp_file, exe_file, mutationpp_include, eigen_include, lib_path, lib_name)
+
+# === Compilation + Loading of the model ===
+
+# Path to test campaign data
+CSV_path = "/home/jpe/VKI/Courses/PCMAF/Data/tests-mass-flow-Justin.xlsx"
+
+# Columns to check for wrong data
+columns_to_check = ["Pressure[mbar]", "Pitot[Pa]", "T [K] (x = 375mm, r = 0mm)", "HeatFlux(HS50mm)[kW/m2]"]
+
+Pstat,massflow,power,heat_flux,off_set_heat_flux,pitot,off_set_pitot,temperature = CSVReader(CSV_path,columns_to_check)
+
+# === Runing 0DReactor ===
+
+target_pressure = [10000]
+tolerance = 300
+
+Pstat_test = []
+T_test = []
+HF_test = []
+
+for targ_p in target_pressure:
+    for i,pstat in enumerate(Pstat):
+
+        if pstat >= targ_p - tolerance and pstat <= targ_p + tolerance:
+            Pstat_test.append(Pstat[i])
+            T_test.append(temperature[i])
+            HF_test.append(heat_flux[i])
+
+    for i in range(len(Pstat_test)):
+        mixture = f"air_5_{int(targ_p/100)}mbar"
+        Tinlet = T_test[i]        # [K]
+        Tsurface = 350.0          # [K]
+        Pstat = Pstat_test[i]     # [Pa]
+        n_species = 5             # [-]
+        qexp = HF_test[i]         # [w/m2]
+
+        wdot, qw, dx = run0DReactor(mixture,Tinlet,Tsurface,Pstat,qexp,exe_file,n_species)

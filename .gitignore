@@ -32,3 +32,6 @@ Project/Stagline/test-cases/.svn/pristine/98/981229b5a2cfdf6b01f037b211511d75a7f
 Project/Stagline/tools/post_processor/StagLineSol.o
 Project/Stagline/tools/post_processor/post_process.dSYM/Contents/Resources/DWARF/post_process
 Project/Stagline/tools/post_processor/post_process.o
+Project/MachineLearning/BayesianInversion/KRGModel/SM_Gamma_Log
+Project/MachineLearning/BayesianInversion/KRGModel/SM_heatFlux
+Courses/PCMAF/0DReactor_exe
