@@ -298,7 +298,7 @@ class BayesianInversion:
             print(Fore.RED + f"---> [ERROR] Failed to register distribution '{name}': {e}")
             sys.exit(1)
 
-    def run_inference(self, draws = 2000, tune = 1000, chains = 4, cores = 4, restart_sim = None, save_path = None):
+    def run_inference(self, draws = 2000, tune = 1000, chains = 4, cores = 4, restart_path = None, save_path = None):
         print(Fore.BLUE + "[STEP] Running Bayesian inference")
         try:
             if self.model is None:
@@ -306,38 +306,51 @@ class BayesianInversion:
                 self.build_model()
                 print(Fore.GREEN + "---> [SUCCESS] Model instance successfully constructed")
 
-            # Starts the Inversion process using Markov Chain Monte Carlo process (NUTS)
+            # Starts the Inversion process using Markov Chain Monte Carlo process (MCMC)
 
             # Tune (Warm-up parameter):
             #       - MCMC has to "warm up" (adapt its internal settings like step size)
-            #       - These results will not be included in the final results
+            #       - These early computations will not be included in the final results
             # Draws:
-            #       - MCMC Sampling results
+            #       - MCMC Sampling points
 
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             np.seterr(over='ignore', invalid='ignore')
             
             # === Restart simulation from previous one ===
-            if restart_sim:
-                print(Fore.WHITE + f"---> [INFO] Resuming from saved trace: {restart_sim}")
-                previous = az.from_netcdf(restart_sim)
+            start = None
+            if restart_path:
+                # Check for the restart file 
+                path_restart_file = os.path.join(restart_path,"Restart_trace.nc")
+                print(Fore.WHITE + f"---> [INFO] Resuming from saved trace: {path_restart_file}")
+                previous = az.from_netcdf(path_restart_file)
                 start = {
+                    # Computing the mean values based on each draw of each chain
                     var: previous.posterior[var].mean(dim=["chain", "draw"]).values
                     for var in previous.posterior
                 }
 
+            # === Running MCMC ===
+
             with self.model:
-                print(Fore.WHITE + "---> [INFO] Starting Bayesian inversion (MCMC sampling) ...")
+                # === Creating sampling arguments ===
                 step = pm.Metropolis()
+                sampling_args = {
+                    "draws": draws,                   # Number of time steps per parameters
+                    "tune": tune,                     # Number of Warm-up or burn-in steps per chains
+                    "chains": chains,                 # Number of chains
+                    "cores": cores,                   # Number of cores
+                    "return_inferencedata": True,
+                    "step": step                      # Step to chose the next values
+                    }
+                
+                if start is not None:
+                    sampling_args["initvals"] = start    # Starting from a previous simulation option
+
+                # Starting sampling
+                print(Fore.WHITE + "---> [INFO] Starting Bayesian inversion (MCMC sampling) ...")
                 # MCMC process
-                self.posteriors = pm.sample(
-                    draws=draws,                # Number of time steps per chains
-                    tune=tune,                  # Number of Warm-up or burn-in steps per chains
-                    chains=chains,                   # Number of chains
-                    cores=cores,                    # Number of cores
-                    return_inferencedata=True,
-                    step=step 
-                )
+                self.posteriors = pm.sample(**sampling_args)
 
             print(Fore.GREEN + "---> [SUCCESS] Computation successfully completed !")
 
@@ -351,36 +364,104 @@ class BayesianInversion:
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Inference failed: {e}")
 
-    def save_trace(self,save_path=None):
-        # === Autosave ===
-        if save_path:
-            # Check for existence of directory
-            parent = os.path.dirname(save_path)
-            if not os.path.exists(parent):
-                os.makedirs(parent, exist_ok=True)
+    def save_trace(self, save_path=None, max_points=10000, save_full=False, save_means=True):
+        """
+        Save the posterior trace in different formats:
+        - Thinned version for plotting (reduced size)
+        - Posterior means only (lightweight restart)
+        - Optionally full trace (for full restart)
 
-            # Saving subsamples of the trace to for memmory saving
-            idata = self.posteriors
+        Parameters:
+        - save_path (str): base path to save (.nc, .csv will be appended)
+        - max_points (int): max number of posterior samples to keep in thinned version
+        - save_full (bool): whether to save the full trace or not
+        - save_means (bool): whether to save posterior means as restart file
+        """
+        if save_path is None or self.posteriors is None:
+            print(Fore.YELLOW + "---> [WARNING] No trace or path provided, skipping save.")
+            return
 
-            # Total number of points
-            n_total = idata.posterior.sizes["chain"] * idata.posterior.sizes["draw"]
+        # Create directory if needed
+        os.makedirs(save_path, exist_ok=True)
+        idata = self.posteriors
+        posterior = idata.posterior
 
-            # Keeping only 10000 points
-            n_target = n_total//1000
-            if n_target < n_total and n_target > 1000:
-                print(Fore.WHITE + f"---> [INFO] Keeping {n_target} points in the trace for saving ...")
-                step = max(1, n_total // n_target) # total division
+        # === Random thinning for plotting purposes ===
+        try:
+            print(Fore.WHITE + "---> [INFO] Applying random thinning of posterior samples ...")
+            # Gathering data
+            n_chains = posterior.sizes["chain"]
+            n_draws = posterior.sizes["draw"]
+            total_samples = n_chains * n_draws
+            # Maximum points to keep
+            max_keep = int(min(max_points, 0.9*total_samples))
+            print(Fore.WHITE + f"---> [INFO] Keeping {max_keep} points in total ...")
+            # Number of points to keep in each chains
+            draws_to_keep_per_chain = min(n_draws, max(max_keep // n_chains, 1))
+            print(Fore.WHITE + f"---> [INFO] Keeping {draws_to_keep_per_chain} points in each of the {posterior.sizes['chain']} chains ...")
 
-                # Sous-échantillonnage
-                idata_thinned = idata.sel(draw=slice(None, None, step))
+            # Final safety check
+            if draws_to_keep_per_chain > n_draws:
+                raise ValueError(f"Cannot keep {draws_to_keep_per_chain} draws per chain, only {n_draws} available.")
+            
+            # Starting the sampling of the chains
+            thinned_data = {}
+            for var in posterior.data_vars:
+                var_data = posterior[var].values  # shape: (chain, draw)
+                chain_list = []
 
-                # Enregistrement
-                az.to_netcdf(idata_thinned, save_path)
-                print(Fore.WHITE + f"---> [INFO] Posterior autosaved to {save_path} ...")
-            else:
-                print(Fore.YELLOW + f"---> [WARNING] Keeping all points for posteriors saving !")
-                az.to_netcdf(self.posteriors, save_path)
-                print(Fore.WHITE + f"---> [INFO] Posterior autosaved to {save_path} ...")
+                for chain_id in range(posterior.sizes["chain"]):
+                    # Randomly chosing the points to keep
+                    draw_indices = np.random.choice(n_draws, size=draws_to_keep_per_chain, replace=False)
+                    draw_indices.sort()
+                    # Gathering the thinned chain
+                    thinned_chain = var_data[chain_id, draw_indices]  # shape: (n_draws,)
+                    chain_list.append(thinned_chain)
+
+                # Reconstructing the structure of the posteriors chains
+                thinned_array = np.stack(chain_list, axis=0)  # shape: (chain, n_draws)
+                thinned_data[var] = thinned_array
+
+            # Build InferenceData to save it as .nc
+            idata_thinned = az.from_dict(posterior=thinned_data)
+            # Creating the full path of the file
+            thinned_path = os.path.join(save_path, "Thinned_trace.nc")
+            # Saving the file
+            az.to_netcdf(idata_thinned, thinned_path)
+            print(Fore.WHITE + f"---> [INFO] Thinned posterior saved to: {thinned_path}")
+
+        except Exception as e:
+            print(Fore.RED + f"[ERROR] Failed to save the thinned trace: {e}")
+
+        # === Save posterior means only (for restart) ===
+        if save_means:
+            try:
+                print(Fore.WHITE + "---> [INFO] Saving simulation trace for further restart purposes")
+                # Computing the mean value of each prior
+                mean_data = {}
+                for var in posterior.data_vars:
+                    # Get the mean value
+                    mean_val = idata.posterior[var].values.mean()
+                    # Store as a numpy array with shape (1, 1)
+                    mean_data[var] = np.array([[mean_val]])  # shape: (chain=1, draw=1)
+
+                # Creating inference data to be able to save it as .nc 
+                idata_means = az.from_dict(posterior=mean_data)
+                # Creating the full path of the file
+                mean_path = os.path.join(save_path,"Restart_trace.nc")
+                # Saving the file
+                az.to_netcdf(idata_means, mean_path)
+                print(Fore.WHITE + f"---> [INFO] Posterior means saved to: {mean_path}")
+            except Exception as e:
+                print(Fore.RED + f"[ERROR] Failed to save posterior means: {e}")
+
+        # === Optionally save full trace ===
+        if save_full:
+            # Creating the full path of the file
+            full_path = os.path.join(save_path,"Full_trace.nc")
+            # Saving the file
+            az.to_netcdf(idata, full_path)
+            print(Fore.WHITE + f"---> [INFO] Full posterior saved to: {save_path}")
 
     def priliminary_analysis(self):
 
@@ -479,7 +560,6 @@ class BayesianInversion:
 
                 axs_indiv[0].set_title(f"Trace - {name}")
                 axs_indiv[0].set_ylabel("Value")
-                axs_indiv[0].legend()
 
                 axs_indiv[1].set_title(f"PDF - {name}")
                 axs_indiv[1].set_ylabel("Density")

@@ -103,24 +103,23 @@ for i in range(len(Pdyn_test)):
 
     # Global path
     # -----------
-
-    global_path = "/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Single_Condition_Testing/"
+    global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Single_Condition_Testing/Posterior_Pstat={target_pressure[0]/100}_T={T_test[i]}"
 
     # Path previous simulation for restart purposes
     # ---------------------------------------------
     # If restart is not required --> Leave this spot EMPTY
-    #restart_sim = global_path + f"Posteriors/PostDist_Unit_d={draws}_c={chain}_Pstat={target_pressure[0]/100}_T={T_test[i]}.nc"
+    restart_path = save_path_posteriors = os.path.join(global_path,"Posteriors")
 
     # Path for saving the bayesian inversion simulation
     # -------------------------------------------------
     # If saving is not required --> Leave this spot EMPTY
-    save_path_posteriors = global_path + f"Posteriors/PostDist_Unit_d={draws}_c={chain}_Pstat={target_pressure[0]/100}_T={T_test[i]}.nc"
+    save_path_posteriors = os.path.join(global_path,"Posteriors")
 
     # Running 
-    trace, MAP_values, R_hat_all = model.run_inference(draws,tune,chain,cores,save_path=save_path_posteriors)
+    trace, MAP_values, R_hat_all = model.run_inference(draws,tune,chain,cores,save_path=save_path_posteriors,restart_path=restart_path)
 
     # Plotting
-    save_path_results = global_path + f"Results/PostDist_Unit_d={draws}_c={chain}_Pstat={target_pressure[0]/100}_T={T_test[i]}"
+    save_path_results = os.path.join(global_path,"Results")
     extension = "jpeg"
 
     model.plot_posteriors_custom(save_path_results,extension)
