@@ -3,8 +3,9 @@ import ctypes
 import os
 import subprocess
 from colorama import Fore, Style, init
-from scipy.optimize import newton
+from scipy.optimize import minimize_scalar
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Initialize colorama
 init(autoreset=True)
@@ -57,19 +58,63 @@ def run0DReactor(mixture,Tinlet,Tsurface,Pstat,qexp,exe_file,n_species):
 
         print(Fore.WHITE + f"---> [INFO] Defining Newton function ...")
 
-        iteration_count = {"n": 0}
-        def equation(dx):
-            iteration_count["n"] += 1
+        dx_range = np.linspace(1e-6, 1e1, 100)
+        qw_vals = []
+
+        """
+        for dx in dx_range:
             wdot = (ctypes.c_double * n_species)()
             qw = ctypes.c_double()
             lib.ZeroDReactor(mixture, Tinlet, Tsurface, Pstat, dx, wdot, ctypes.byref(qw))
-            return qexp - qw.value
+            qw_vals.append(qw.value / 1000)
 
-        dx_initial_guess = 0.001
-        solution_dx = newton(equation, dx_initial_guess, tol=1e-8)
+        plt.plot(np.log10(dx_range), np.log(qw_vals))
+        plt.axhline(y=np.log(qexp/1000), color='red', linestyle='--', label='qexp')
+        plt.xlabel("log10(dx)")
+        plt.ylabel("qw [kW/m²]")
+        plt.title("qw vs log10(dx)")
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+        """
 
-        print(Fore.WHITE + f"---> [INFO] Final call with solution dx = {solution_dx:.6e}")
-        print(Fore.WHITE + f"---> [INFO] Newton iterations = {iteration_count['n']}")
+        iteration_count = {"n": 0}
+        def log10_equation(log_dx):
+            dx = 10 ** log_dx
+            if dx <= 0:
+                return 1e20  # sécurité : dx doit être positif
+
+            iteration_count["n"] += 1
+
+            # Appel au modèle C++
+            wdot = (ctypes.c_double * n_species)()
+            qw = ctypes.c_double()
+            lib.ZeroDReactor(mixture, Tinlet, Tsurface, Pstat, dx, wdot, ctypes.byref(qw))
+
+            # Calcul de l’erreur
+            qw_kW = qw.value / 1000
+            error = abs(qexp / 1000 - qw_kW)
+
+            #print(f"[{iteration_count['n']:02d}] log10(dx) = {log_dx:.3f}, dx = {dx:.3e}, qw = {qw_kW:.3f}, error = {error:.3f}")
+            return error
+
+        # Lancement de l'optimisation sur log10(dx)
+        result = minimize_scalar(
+            log10_equation,
+            bounds=(-6, 3),  # dx entre 1e-6 et 1e-1
+            method='bounded',
+            options={'xatol': 1e-9}
+        )
+
+        # Extraction du résultat
+        if result.success:
+            log_dx_solution = result.x
+            solution_dx = 10 ** log_dx_solution
+        else:
+            print(Fore.RED + "[ERROR] Optimization failed.")
+            solution_dx = None
+
+        print(Fore.WHITE + f"---> [INFO] Total iterations = {iteration_count['n']}")
 
         wdot = (ctypes.c_double * n_species)()
         qw = ctypes.c_double()
@@ -82,6 +127,7 @@ def run0DReactor(mixture,Tinlet,Tsurface,Pstat,qexp,exe_file,n_species):
 
         print(Fore.MAGENTA + f"[RESULTS] Final dx to match experimental qw : {solution_dx}")
         print(Fore.MAGENTA + f"[RESULTS] Final qw (0DReactor) : {qw/1000}")
+        print(Fore.MAGENTA + f"[RESULTS] Error : {abs(qexp/1000 - qw/1000)}")
 
         return wdot_np, qw, solution_dx
 

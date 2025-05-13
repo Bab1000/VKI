@@ -12,6 +12,8 @@ import re
 import scipy.stats as stats
 import matplotlib.cm as cm
 import os
+from tabulate import tabulate # type: ignore
+from pytensor.printing import pydotprint # type: ignore
 
 # Initialize colorama
 init(autoreset=True)
@@ -24,27 +26,86 @@ init(autoreset=True)
 class BayesianInversion:
 
     def __init__(self, y, forward_model):
+
+        """
+        Initializes an instance of the Bayesian model.
+
+        Parameters:
+        - y: Observed data (target features)
+        - forward_model: Surrogate model used as the forward model in Bayesian inference
+
+        During initialization:
+        - Stores the observed data
+        - Prepares empty lists for prior distributions (`priors`) and observed distributions (`observed`)
+        - Sets `self.model` and `self.posteriors` to None as placeholders
+        - Assigns the provided surrogate model to `self.forward_model`
+        """
+
         print(Fore.BLUE + "[STEP] Initializing the Bayesian model")
         try:
             
             print(Fore.WHITE + "---> [INFO] Building initialization ...")
-
-            self.y = y                         # Observed features
-            self.priors = []                   # Prior distributions
-            self.observed = []                 # Observed distributions
-            self.model = None                  # Bayesian model
-            self.forward_model = forward_model # Forward surrogate model
-            self.posteriors = None             # Posterior results
+        
+            self.y = y                                               # Observed features
+            self.priors = []                                         # Prior distributions
+            self.observed = []                                       # Observed distributions
+            self.model = None                                        # Bayesian model
+            self.forward_model = forward_model                       # Forward surrogate model
+            self.posteriors = None                                   # Posterior results
+            self.SM_prediction = None                                # Link between SMT and pyMC
+            self.constant = []                                       # Constant value
+            self.input_names_order = ["Pdyn","Pstat","T","GN","GO"]  # Input order for SM model
 
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Initialization failed: {e}")
             sys.exit(1)
             raise
-
+        
     def build_model(self):
+
+        """
+        Builds the full Bayesian inference model using the provided priors, observed data, and surrogate (forward) model.
+
+        This method performs the following steps:
+
+        1. **Defines prior distributions**:
+        Iterates over `self.priors` and adds each distribution (normal or uniform) to the PyMC model, computing standard deviations for normal priors if needed.
+
+        2. **Integrates the surrogate model**:
+        Depending on the dimensionality of `self.y`, detects whether it's a scalar (single experiment) or vector (multiple experiments).
+        - For multiple experiments, groups the priors by test case and constructs a 2D input matrix to feed into the `SMStaglineVectorized` model.
+        - For single experiments, concatenates the priors into a single input vector for the `SMStagline` model.
+        In both cases, uses the surrogate model to predict the outcome (`SM_prediction`).
+
+        3. **Defines observed distributions**:
+        Iterates over `self.observed` to link the model prediction with the actual observed data `self.y`, using either normal or uniform distributions.
+
+        4. **Model assignment**:
+        Stores the fully constructed PyMC model in `self.model`.
+
+        Raises:
+        - ValueError for unsupported or incomplete distribution definitions
+        - SystemExit if a critical step fails (e.g., prior/observed distributions not properly set or surrogate model fails)
+        """
+
+
         print(Fore.WHITE + "---> [INFO] Building the Bayesian framework ...")
         try:
             with pm.Model() as model:
+
+                # ===========================================================================================
+
+                # Insertion of constant values
+                # ----------------------------
+                try:
+                    if hasattr(self, "constant"):
+                        for const in self.constant:
+                            name = const["name"]
+                            value = const["value"]
+                            pm.Deterministic(name, pt.constant(value))
+                except Exception as e:
+                    print(Fore.RED + f"---> [ERROR] Failed to insert constants into model: {e}")
+                    sys.exit(1)
 
                 # ===========================================================================================
                 
@@ -120,9 +181,12 @@ class BayesianInversion:
                         
                         # Building the input matrix for surrogate model
                         input_matrix = []
+                        all_row_var_names = []
+
                         # Gather infos for each test case
                         for tc in sorted_tc:
                             row = []
+                            row_var_names = []
                             for var_name in grouped_vars[tc]:
                                 # Gather each distribution of the test case
                                 var = model.named_vars.get(var_name)
@@ -131,6 +195,8 @@ class BayesianInversion:
                                 # Appending the values in the matrix
                                 vec = pt.flatten(var)[0].dimshuffle(())
                                 row.append(vec)
+                                row_var_names.append(var_name)  # Capture de name for further sorting
+
 
 
                             # Append global variables 
@@ -140,7 +206,27 @@ class BayesianInversion:
                                 # Appending the values in the matrix
                                 vec = pt.flatten(var)[0].dimshuffle(())
                                 row.append(vec)
-                            
+                                row_var_names.append(var_name)  # Capture de name for further sorting
+
+                            # Sorting the inputs for the SM model
+                            index_sorted_row = []
+
+                            for input_name in self.input_names_order:
+                                found = False
+                                for idx, row_var_name in enumerate(row_var_names):
+                                    base_name = row_var_name.split("_TC=")[0]  # Remove TC suffix if present
+                                    if input_name == base_name:
+                                        index_sorted_row.append(idx)
+                                        found = True
+                                        break
+                                if not found:
+                                    raise ValueError(f"[ERROR] Input '{input_name}' not found among {row_var_names}")
+
+                            # Now reorder row and row_var_names according to the sorted indices
+                            row = [row[i] for i in index_sorted_row]
+                            row_var_names = [row_var_names[i] for i in index_sorted_row]
+                            all_row_var_names.append(row_var_names)
+                                                                    
                             # Creating the global input matrix for the surrogate model
                             input_matrix.append(pt.stack(row))
                         
@@ -149,6 +235,11 @@ class BayesianInversion:
                         # Prediction of the output of the model
                         SM_prediction = Stagline_SM(SM_input)
 
+                        header = [f"Input {i+1}" for i in range(len(self.input_names_order))]
+                        print(Fore.WHITE + f"\n=== Input matrix for the current simulation === ")
+                        print(tabulate(all_row_var_names, headers=header, tablefmt="fancy_grid"))
+                        print("\n")
+
                     else:
                         # Non-vectorized case
                         print(Fore.WHITE + "---> [INFO] Detected scalar setup (single experiment)")
@@ -156,6 +247,7 @@ class BayesianInversion:
 
                         # Gathering the prior distributions
                         prior_var_list = []
+                        prior_var_names = []  # Store names for sorting
                         for name in model.named_vars:
                             # Gathering the values for each prior distributions
                             var = model.named_vars.get(name)
@@ -163,6 +255,24 @@ class BayesianInversion:
                                 raise ValueError(f"Prior distribution '{name}' not found in model.")
                             # Building the input vector for the SMT surrogate model
                             prior_var_list.append(pt.flatten(var))
+                            prior_var_names.append(name)
+
+                        # Sorting the inputs according to the SMT model expected order 
+                        index_sorted_prior = []
+
+                        for input_name in self.input_names_order:
+                            found = False
+                            for idx, prior_var_name in enumerate(prior_var_names):
+                                if input_name == prior_var_name:
+                                    index_sorted_prior.append(idx)
+                                    found = True
+                                    break
+                            if not found:
+                                raise ValueError(f"[ERROR] Input '{input_name}' not found among {prior_var_names}")
+
+                        # Reorder prior_var_list
+                        prior_var_list = [prior_var_list[i] for i in index_sorted_prior]
+                        prior_var_names = [prior_var_names[i] for i in index_sorted_prior]
 
                         # Creating a pytensor input for the SMTStaglineVectorized class
                         SM_input = pt.concatenate(prior_var_list, axis=0)  # shape: (n_inputs,)
@@ -196,7 +306,7 @@ class BayesianInversion:
                             # Construction of normal distribution
                             if dist_type == "normal" and (mu is not None and uncertainty is not None):
                                 # Computation of standard deviation (95%)
-                                sigma = max(uncertainty / 1.96, 1e-2)
+                                sigma = uncertainty / 1.96
                                 # Uses Stagline SM for the observed quantities
                                 var = pm.Normal(name, mu=SM_prediction[counter], sigma=sigma, observed = self.y[counter])
 
@@ -207,6 +317,19 @@ class BayesianInversion:
 
                             else:
                                 raise ValueError(f"Unsupported distribution: {dist_type}")
+                            
+                            # Collect info to display
+                            link_table = []
+
+                            for i, dist in enumerate(self.observed):
+                                name = dist["name"]
+                                obs_val = self.y[i]
+                                pred_expr = f"SM_prediction[{i}]"  # Symbolic PyTensor expression
+                                link_table.append([name, str(pred_expr), obs_val/1000])
+
+                        print(Fore.WHITE + f"\n === Mapping between Observations and Predictions === ")
+                        print(tabulate(link_table, headers=["Distribution", "SM Prediction (symbolic)", "Observed Value"], tablefmt="fancy_grid"))
+                        print("\n")
                     
                     else:
                         for dist in self.observed:
@@ -220,7 +343,7 @@ class BayesianInversion:
                             # Construction of normal distribution
                             if dist_type == "normal":
                                 # Computation of standard deviation (95%)
-                                sigma = max(uncertainty / 1.96, 1e-2)
+                                sigma = uncertainty / 1.96
                                 # Uses Stagline SM for the observed quantities
                                 var = pm.Normal(name, mu=SM_prediction, sigma=sigma, observed = self.y)
 
@@ -242,6 +365,7 @@ class BayesianInversion:
                     sys.exit(1)
 
                 # Construction of the Bayesian model
+                self.SM_prediction = SM_prediction
                 self.model = model
 
         except Exception as e:
@@ -249,6 +373,26 @@ class BayesianInversion:
             sys.exit(1)
     
     def add_priors(self, name, distribution="normal", mu=None, uncertainty=None, lower = None, upper = None):
+
+        """
+        Registers a prior distribution to be included in the Bayesian model.
+
+        Parameters:
+        - name (str): Name of the prior distribution.
+        - distribution (str): Type of distribution ("normal" or "uniform"). Default is "normal".
+        - mu (float, optional): Mean of the distribution (required for "normal").
+        - uncertainty (float, optional): Standard deviation (required for "normal").
+        - lower (float, optional): Lower bound of the distribution (required for "uniform").
+        - upper (float, optional): Upper bound of the distribution (required for "uniform").
+
+        Behavior:
+        - Validates the distribution type and required parameters.
+        - Appends the prior configuration to `self.priors` for later use during model construction.
+
+        Raises:
+        - ValueError: If required parameters are missing for the selected distribution type.
+        """
+
         try:
             distribution = distribution.lower()
 
@@ -267,13 +411,34 @@ class BayesianInversion:
                 "upper": upper
             })
 
-            print(Fore.WHITE + f"---> [INFO] Prior {distribution.capitalize()} distribution registered : {name}")
+            print(Fore.WHITE + f"---> [INFO] Prior distribution registered    : {name} (distribution : {distribution.capitalize()})")
 
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Failed to register distribution '{name}': {e}")
             sys.exit(1)
 
     def add_observed(self, name, distribution="normal", mu=None, uncertainty=None, lower = None, upper = None):
+        
+        """
+        Registers an observed distribution to be used in the Bayesian model.
+
+        Parameters:
+        - name (str): Name of the observed distribution.
+        - distribution (str): Type of distribution ("normal" or "uniform"). Default is "normal".
+        - mu (float, optional): Mean of the distribution (required for "normal").
+        - uncertainty (float, optional): Standard deviation (required for "normal").
+        - lower (float, optional): Lower bound (required for "uniform").
+        - upper (float, optional): Upper bound (required for "uniform").
+
+        Behavior:
+        - Validates the selected distribution type and ensures required parameters are provided.
+        - Appends the distribution definition to `self.observed` for later integration during model construction.
+
+        Raises:
+        - ValueError: If required parameters are missing based on the chosen distribution type.
+        """
+
+        
         try:
             distribution = distribution.lower()
 
@@ -292,18 +457,89 @@ class BayesianInversion:
                 "upper": upper
             })
 
-            print(Fore.WHITE + f"---> [INFO] Observed {distribution.capitalize()} distribution registered : {name}")
+            print(Fore.WHITE + f"---> [INFO] Observed distribution registered : {name} (distribution : {distribution.capitalize()})")
 
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Failed to register distribution '{name}': {e}")
             sys.exit(1)
 
-    def run_inference(self, draws = 2000, tune = 1000, chains = 4, cores = 4, restart_path = None, save_path = None):
+    def add_constant(self, name, value):
+        """
+        Registers a constant value to be used in the Bayesian model.
+
+        Parameters:
+        - name (str): Name of the constant.
+        - value (float): Numeric value of the constant.
+
+        Behavior:
+        - Stores the constant definition in a list for later integration.
+        - The constants will be inserted into the PyMC model during `build_model()`.
+
+        Raises:
+        - ValueError: If name is missing or value is not a number.
+        """
+
+        try:
+            if not isinstance(name, str):
+                raise ValueError("The constant name must be a string.")
+            if not isinstance(value, (int, float)):
+                raise ValueError("The constant value must be a numeric type (int or float).")
+
+            self.constant.append({
+                "name": name,
+                "value": float(value)
+            })
+
+            print(Fore.WHITE + f"---> [INFO] Constant registered               : {name} = {value:.3f}")
+
+        except Exception as e:
+            print(Fore.RED + f"---> [ERROR] Failed to register constant '{name}': {e}")
+            sys.exit(1)
+
+    def run_inference(self, draws = 10000, tune = 2000, chains = 4, cores = 4, restart = False, save_path = None):
+
+        """
+        Runs the Bayesian inference process using Markov Chain Monte Carlo (MCMC) sampling.
+
+        Parameters:
+        - draws (int): Number of samples to draw from the posterior (after warm-up). Default is 10000.
+        - tune (int): Number of warm-up (burn-in) steps per chain. Default is 2000.
+        - chains (int): Number of independent MCMC chains to run. Default is 4.
+        - cores (int): Number of CPU cores to use for parallel sampling. Default is 4.
+        - restart (bool): If True, resumes sampling from a previously saved trace. Default is False.
+        - save_path (str or None): Directory path to save or load the trace file (used for restarts). Default is None.
+
+        Behavior:
+        - Builds the model if it hasn't been constructed yet.
+        - Optionally loads initial values from a saved trace if `restart` is enabled.
+        - Calls `summary_distributions()` to display an overview of the prior and observed distributions.
+        - Executes MCMC sampling using PyMC's Metropolis step method.
+        - Stores the results in `self.posteriors`.
+        - Automatically saves the posterior trace using `self.save_trace()` if `save_path` is provided.
+        - Performs a preliminary analysis of the results with `self.priliminary_analysis()`.
+
+        Returns:
+        - posteriors (InferenceData): The full posterior trace from MCMC sampling.
+        - map_values (dict): Maximum a posteriori (MAP) estimates for each parameter.
+        - R_hat_all (dict): Convergence diagnostic (R-hat values) for each variable.
+
+        Raises:
+        - Exits and logs the error message if inference fails.
+        """
+
+
         print(Fore.BLUE + "[STEP] Running Bayesian inference")
         try:
             if self.model is None:
                 print(Fore.WHITE + "---> [INFO] Building the model instance ...")
                 self.build_model()
+                # Plotting symbolic tree
+                #pydotprint(
+                #    self.SM_prediction, 
+                #    outfile="symbolic_graph.pdf", 
+                #    var_with_name_simple=True, 
+                #    scan_graphs=True
+                #)
                 print(Fore.GREEN + "---> [SUCCESS] Model instance successfully constructed")
 
             # Starts the Inversion process using Markov Chain Monte Carlo process (MCMC)
@@ -319,9 +555,10 @@ class BayesianInversion:
             
             # === Restart simulation from previous one ===
             start = None
-            if restart_path:
+            if restart:
+                
                 # Check for the restart file 
-                path_restart_file = os.path.join(restart_path,"Restart_trace.nc")
+                path_restart_file = os.path.join(save_path,"Restart_trace.nc")
                 print(Fore.WHITE + f"---> [INFO] Resuming from saved trace: {path_restart_file}")
                 previous = az.from_netcdf(path_restart_file)
                 start = {
@@ -329,6 +566,9 @@ class BayesianInversion:
                     var: previous.posterior[var].mean(dim=["chain", "draw"]).values
                     for var in previous.posterior
                 }
+
+            # === Plotting summary of distributions ===
+            self.summary_distributions()
 
             # === Running MCMC ===
 
@@ -463,7 +703,33 @@ class BayesianInversion:
             az.to_netcdf(idata, full_path)
             print(Fore.WHITE + f"---> [INFO] Full posterior saved to: {save_path}")
 
+    def get_constant_names(self):
+        """Returns a list of all constant variable names."""
+        return [const["name"] for const in self.constant]
+
     def priliminary_analysis(self):
+
+        """
+        Performs a preliminary analysis of the posterior results by computing:
+
+        1. **MAP estimates**:
+        - Computes the Maximum A Posteriori (MAP) value for each variable in the posterior trace.
+        - Results are stored in the `map_values` dictionary.
+
+        2. **Gelman-Rubin diagnostic (R̂)**:
+        - Calculates the R-hat statistic for each variable to assess convergence across MCMC chains.
+        - R̂ close to 1.0 indicates good convergence (must be < 1.2).
+        - Results are stored in the `R_hat_all` dictionary and printed to the console.
+
+        Returns:
+        - map_values (dict): Dictionary containing MAP estimates for each parameter.
+        - R_hat_all (dict): Dictionary of R-hat values (Gelman-Rubin diagnostic) for each parameter.
+
+        Notes:
+        - Assumes the `self.posteriors` attribute contains the posterior trace from MCMC sampling.
+        - Uses custom `get_MAP()` function to extract MAP values from sample arrays.
+        """
+
 
         # === MAP computation ===
         print(Fore.WHITE + "---> [INFO] Computing MAP values ...")
@@ -473,7 +739,10 @@ class BayesianInversion:
         data_posteriors = self.posteriors.posterior
 
         # Computaing MAP
+        const_names = self.get_constant_names()
         for var in data_posteriors.data_vars:
+            if var in const_names:
+                continue  # Skip constants
             samples = data_posteriors[var].values.flatten()
             map_values[var] = self.get_MAP(samples)
 
@@ -483,6 +752,9 @@ class BayesianInversion:
         R_hat_all = {}
 
         for var_name in posterior.data_vars:
+            if var_name in const_names:
+                continue  # Skip constants
+
             values = posterior[var_name].values  # shape: [chain, draw, *dims]
 
             # Dimensions : [chain, draw]
@@ -512,6 +784,23 @@ class BayesianInversion:
         return map_values,R_hat_all
 
     def get_MAP(self,samples):
+
+        """
+        Estimates the Maximum A Posteriori (MAP) value from a set of posterior samples.
+
+        Parameters:
+        - samples (array-like): 1D array of posterior samples.
+
+        Behavior:
+        - Applies Gaussian Kernel Density Estimation (KDE) to approximate the probability density function of the samples.
+        - Evaluates the density across a linear space of values between the min and max of the samples.
+        - Returns the value corresponding to the peak (mode) of the KDE curve, which is the MAP estimate.
+
+        Returns:
+        - float: Estimated MAP value.
+        """
+
+
         # Computing MAP
         kde = stats.gaussian_kde(samples)
         x_vals = np.linspace(min(samples), max(samples), 1000)
@@ -519,65 +808,211 @@ class BayesianInversion:
         return x_vals[np.argmax(densities)]
 
     def plot_posteriors_custom(self, save_path,ext):
+
+        """
+        Generates and saves posterior plots with trace and probability density function (PDF) for each model parameter,
+        including a visual overlay of the prior distribution.
+
+        Parameters:
+        - save_path (str): Directory path where the individual plots will be saved.
+        - ext (str): File extension for the output figures (e.g., "png", "pdf", "svg").
+
+        Behavior:
+        - Validates that posterior samples are available; raises an error otherwise.
+        - Creates the output directory if it doesn't already exist.
+        - Reconstructs prior distributions from model definition (normal or uniform).
+        - Iterates over each parameter in the posterior:
+            - Plots trace plots of the sampled values for each chain.
+            - Computes and plots the posterior density for each chain using Gaussian KDE.
+            - Overlays the corresponding prior distribution as a red dashed line.
+            - Automatically clips the x-axis to the support of the prior distribution:
+                - μ ± 4σ for normal priors.
+                - [lower, upper] bounds for uniform priors.
+            - Displays a legend indicating "Posterior - Chain X" and "Prior".
+        - Saves each figure to the specified path with the chosen extension.
+
+        Raises:
+        - RuntimeError: If posterior samples are not available.
+        - Exits on error with detailed logging in case of plot generation or file-saving failure.
+        """
+
         print(Fore.BLUE + "[STEP] Plotting posterior traces & PDFs per chain (custom)")
         try:
+            # Ensure that posterior samples are available
             if self.posteriors is None:
                 raise RuntimeError("No posteriors available. Run inference first.")
-            
-            if not os.path.exists(save_path):
-                os.makedirs(save_path, exist_ok=True)  
 
+            # Create the output directory if it doesn't exist
+            if not os.path.exists(save_path):
+                os.makedirs(save_path, exist_ok=True)
+
+            # Inform the user that we are loading posterior samples
             print(Fore.WHITE + "---> [INFO] Gathering posteriors data ...")
 
+            # Load the posterior samples
             posterior = self.posteriors.posterior
 
-            prior_names = list(posterior.data_vars)
+            # Get the names of constant variables (excluded from plotting)
+            const_names = self.get_constant_names()
 
-            n = len(prior_names)
-            n_chains = posterior.sizes["chain"]
-            fig, axes = plt.subplots(n, 2, figsize=(14, 2.5 * n))
+            # Get all variable names except constants (i.e., parameters with priors)
+            prior_names = [name for name in posterior.data_vars if name not in const_names]
 
-            if n == 1:
-                axes = [axes]
+            # Set color palette for different chains
+            colors = cm.tab10.colors
 
-            colors = cm.tab10.colors  # palette par défaut
+            # Reconstruct prior distributions using scipy.stats objects
+            prior_dict = {}
+            for p in self.priors:
+                name = p["name"]
+                dist_type = p["type"]
 
+                # Reconstruct normal prior
+                if dist_type == "normal":
+                    mu = p["mu"]
+                    sigma = p["uncertainty"] / 1.96  # Convert 95% uncertainty to standard deviation
+                    prior_dict[name] = stats.norm(loc=mu, scale=sigma)
+
+                # Reconstruct uniform prior
+                elif dist_type == "uniform":
+                    lower = p["lower"]
+                    upper = p["upper"]
+                    prior_dict[name] = stats.uniform(loc=lower, scale=upper - lower)
+
+            # Inform the user we are starting the plotting
             print(Fore.WHITE + "---> [INFO] Plotting Posterior results ...")
+
+            # Get the number of MCMC chains
+            n_chains = posterior.sizes["chain"]
+
+            # Iterate through each variable
             for i, name in enumerate(prior_names):
-                # === Nouvelle fonctionnalité : figure individuelle ===
-                fig_indiv, axs_indiv = plt.subplots(1, 2, figsize=(12, 4))
-                for c in range(n_chains):
-                    chain_samples = posterior[name].sel(chain=c).values.flatten()
+                try:
+                    # Create figure with 2 subplots (trace and PDF)
+                    fig_indiv, axs_indiv = plt.subplots(1, 2, figsize=(12, 4))
 
-                    axs_indiv[0].plot(chain_samples, label=f"Chain {c}", alpha=0.8, color=colors[c % len(colors)])
-                    try:
+                    # Store all samples from all chains for this variable
+                    all_samples = []
+
+                    # Iterate over chains to plot traces and posterior densities
+                    for c in range(n_chains):
+                        # Flatten the samples from chain c
+                        chain_samples = posterior[name].sel(chain=c).values.flatten()
+                        all_samples.append(chain_samples)
+
+                        # Plot the trace (sample values over iterations)
+                        axs_indiv[0].plot(chain_samples, label=f"Chain {c}", alpha=0.8, color=colors[c % len(colors)])
+
+                        # Compute KDE (Kernel Density Estimation)
                         density = stats.gaussian_kde(chain_samples)
-                        x_vals = np.linspace(np.min(chain_samples), np.max(chain_samples), 300)
-                        axs_indiv[1].plot(x_vals, density(x_vals), label=f"Chain {c}", color=colors[c % len(colors)])
-                        axs_indiv[1].fill_between(x_vals, density(x_vals), alpha=0.2, color=colors[c % len(colors)])
-                    except Exception as kde_error:
-                        print(f"[WARN] KDE failed (indiv) for {name}, chain {c}: {kde_error}")
 
+                        # Define x-axis range for KDE
+                        x_vals = np.linspace(np.min(chain_samples), np.max(chain_samples), 300)
+
+                        # Plot posterior PDF line
+                        axs_indiv[1].plot(x_vals, density(x_vals), color=colors[c % len(colors)])
+
+                        # Fill under the posterior PDF
+                        axs_indiv[1].fill_between(x_vals, density(x_vals), alpha=0.2, color=colors[c % len(colors)])
+
+                    # If a prior exists for this variable, overlay it
+                    if name in prior_dict:
+                        prior_dist = prior_dict[name]
+
+                        # Identify the type of distribution
+                        dist_name = getattr(prior_dist.dist, "name", "")
+
+                        # Define support range for normal distribution
+                        if dist_name == "norm":
+                            x_center = prior_dist.mean()
+                            x_std = prior_dist.std()
+                            x_min = x_center - 4 * x_std
+                            x_max = x_center + 4 * x_std
+
+                        # Define support range for uniform distribution
+                        elif dist_name == "uniform":
+                            try:
+                                # safer handling of loc and scale
+                                loc = prior_dist.kwds.get("loc", prior_dist.args[0] if len(prior_dist.args) > 0 else -4)
+                                scale = prior_dist.kwds.get("scale", prior_dist.args[1] if len(prior_dist.args) > 1 else 0)
+                                x_min = loc
+                                x_max = loc + scale
+                            except Exception as uniform_err:
+                                print(f"[WARN] Failed to extract uniform bounds for {name}: {uniform_err}")
+                                # If it fails, fallback to sample-based range
+                                x_min, x_max = np.min(np.concatenate(all_samples)), np.max(np.concatenate(all_samples))
+
+                        # Fallback for any other distribution
+                        else:
+                            x_min, x_max = np.min(np.concatenate(all_samples)), np.max(np.concatenate(all_samples))
+
+                        # Create x values for prior PDF
+                        prior_vals = np.linspace(x_min, x_max, 500)
+
+                        # Evaluate prior PDF
+                        prior_pdf = prior_dist.pdf(prior_vals)
+
+                        # Plot prior as a dashed red line
+                        axs_indiv[1].plot(prior_vals, prior_pdf, linestyle="--", color="red", label="Prior")
+
+                        # Add margin around the x-axis limits for clarity
+                        margin = 0.02 * (x_max - x_min)
+                        axs_indiv[1].set_xlim(x_min - margin, x_max + margin)
+
+                except Exception as plot_err:
+                    # Catch plotting errors for specific variables
+                    print(f"[WARN] Plotting failed for {name}: {plot_err}")
+                    continue
+
+                # Set title and label for trace plot
                 axs_indiv[0].set_title(f"Trace - {name}")
                 axs_indiv[0].set_ylabel("Value")
 
+                # Set title and label for PDF plot
                 axs_indiv[1].set_title(f"PDF - {name}")
                 axs_indiv[1].set_ylabel("Density")
 
+                # Show legend for prior vs posterior
+                axs_indiv[1].legend(loc="best")
+
+                # Adjust layout
                 plt.tight_layout()
 
+                # Define filename and full path for saving
                 file_name = f"{name}.{ext}"
                 full_path = os.path.join(save_path, file_name)
+
+                # Save figure to file
                 plt.savefig(full_path, format=ext, dpi=300, bbox_inches="tight")
                 print(Fore.WHITE + f"---> [INFO] Saved individual posterior plot: {file_name}")
 
+                # Close the figure to free memory
                 plt.close(fig_indiv)
 
+        # Catch all other errors and exit safely
         except Exception as e:
             print(Fore.RED + f"---> [ERROR] Manual plotting failed: {e}")
             sys.exit(1)
 
-    def summary(self):
+    def summary_results(self):
+
+        """
+        Generates a statistical summary of the posterior distributions using ArviZ.
+
+        Behavior:
+        - Checks if posterior data is available; raises an error if not.
+        - Uses ArviZ's `summary()` function to compute key statistics (mean, std, HDI, R̂, ESS, etc.).
+        - Logs success or failure with color-coded console messages.
+
+        Returns:
+        - summary_stats (DataFrame): Summary table of posterior distributions if successful.
+        - None: If an error occurs during summary generation.
+
+        Raises:
+        - RuntimeError: If inference has not been run and `self.posteriors` is None.
+        """
+
+
         print(Fore.BLUE + "[STEP] Generating summary of posterior distributions")
         try:
             if self.posteriors is None:
@@ -589,7 +1024,115 @@ class BayesianInversion:
             print(Fore.RED + f"---> [ERROR] Summary generation failed: {e}")
             return None
 
+    def summary_distributions(self):
+
+        """
+        Displays a summary table of all prior and observed distributions defined in the model.
+
+        Behavior:
+        - Iterates through both `self.priors` and `self.observed` to extract relevant information.
+        - For each distribution, displays:
+        - Name
+        - Role ("Prior" or "Observed")
+        - Distribution type ("Normal" or "Uniform")
+        - Parameters: mean, uncertainty (for normal), or lower/upper bounds (for uniform)
+        - Formats and prints the summary as a well-structured table using `tabulate`.
+        - Handles missing parameters by substituting placeholders ("-").
+
+        Returns:
+        - None (prints the summary directly to the console).
+        """
+
+
+        rows = []
+
+        # Function to gether the format of the distribution
+        def format_row(entry, role):
+            # get the type of distribution
+            dist_type = entry.get("type", "-").capitalize()
+            # get the name
+            name = entry.get("name", "-")
+            
+            # Normal case
+            if dist_type == "Normal":
+                return [
+                    name,
+                    role,
+                    dist_type,
+                    f"{entry.get('mu', '-'):.3f}" if entry.get("mu") is not None else "-",
+                    f"{entry.get('uncertainty', '-'):.3f}" if entry.get("uncertainty") is not None else "-",
+                    "-", "-"
+                ]
+            # Uniform case
+            elif dist_type == "Uniform":
+                return [
+                    name,
+                    role,
+                    dist_type,
+                    "-", "-",
+                    f"{entry.get('lower', '-'):.3f}" if entry.get("lower") is not None else "-",
+                    f"{entry.get('upper', '-'):.3f}" if entry.get("upper") is not None else "-"
+                ]
+            # Constant value
+            elif dist_type == "Constant":
+                return [
+                    name,
+                    role,
+                    dist_type,
+                    f"{entry.get('value', '-'):.3f}" if entry.get("value") is not None else "-",
+                    "-", "-", "-"
+                ]
+            # Return something if error
+            else:
+                return [name, role, dist_type, "-", "-", "-", "-"]
+
+        # Collect prior 
+        for p in self.priors:
+            rows.append(format_row(p, "Prior"))
+
+        # Collect observed
+        for o in self.observed:
+            rows.append(format_row(o, "Observed"))
+
+        # Constants
+        for c in self.constant:
+            rows.append(format_row({
+                "name": c["name"],
+                "type": "constant",
+                "value": c["value"]
+            }, "Constant"))
+
+        # defining headers for the table
+        headers = ["Name", "Role", "Distribution", "Mean", "Uncertainty", "Lower", "Upper"]
+
+        print(Fore.WHITE + "\n=== Summary Model Distributions ===\n")
+        print(Fore.WHITE + tabulate(rows, headers=headers, tablefmt="fancy_grid"))
+        print("\n")
+
     def predict_from_posterior(self, verbose=True, limit=10):
+
+        """
+        Generates predictions using the surrogate model based on samples from the posterior distribution.
+
+        Parameters:
+        - verbose (bool): If True, prints the first few predictions to the console. Default is True.
+        - limit (int): Maximum number of predictions to print when verbose is enabled. Default is 10.
+
+        Behavior:
+        - Ensures posterior samples and the surrogate model are available.
+        - Stacks posterior samples into a 2D array with shape (n_samples, n_features).
+        - Uses the surrogate model (`self.forward_model`) to predict output values from the sampled parameters.
+        - Optionally prints a limited number of predictions for inspection.
+
+        Returns:
+        - y_pred (ndarray): Predicted outputs for each posterior sample (shape: [n_samples, 1]).
+
+        Raises:
+        - RuntimeError: If posterior samples or the surrogate model are not available.
+        - ValueError: If a required variable is missing in the posterior sample set.
+        - Returns None in case of failure with an error message.
+        """
+
         print(Fore.BLUE + "[STEP] Predicting from posterior samples using the surrogate model")
         try:
             if self.posteriors is None:
@@ -627,6 +1170,80 @@ class BayesianInversion:
             print(Fore.RED + f"---> [ERROR] Prediction from posterior failed: {e}")
             return None
 
+    def plot_predictions_vs_observed(self, n_samples=100, save_path=None):
+        """
+        Trace les prédictions du modèle SMT à partir des échantillons postérieurs
+        et les compare aux observations réelles.
+        
+        Parameters:
+        - n_samples (int): nombre d'échantillons postérieurs à utiliser pour la prédiction
+        - save_path (str or None): si fourni, sauvegarde la figure dans ce chemin
+        """
+        print(Fore.BLUE + "[STEP] Plotting SMT predictions vs observed data")
+        try:
+            if self.posteriors is None:
+                raise RuntimeError("No posteriors available.")
+            if self.forward_model is None:
+                raise RuntimeError("No surrogate model available.")
+
+            samples = self.posteriors.posterior
+            prior_names = list(self.model.named_vars)
+
+            # === Extraction d'échantillons postérieurs
+            stacked = []
+            for name in prior_names:
+                val = samples[name].stack(sample=("chain", "draw")).values
+                stacked.append(val)
+            X_all = np.vstack(stacked).T  # shape (n_total_samples, n_inputs)
+
+            # === Réduction à n_samples max
+            idx = np.random.choice(X_all.shape[0], size=min(n_samples, X_all.shape[0]), replace=False)
+            X_samples = X_all[idx, :]
+
+            # === Prédiction avec le modèle SMT
+            y_preds = self.forward_model.predict_values(X_samples)  # shape: (n_samples, n_outputs)
+
+            # === Tracé pour chaque sortie
+            n_outputs = y_preds.shape[1] if y_preds.ndim == 2 else 1
+            y_obs = np.atleast_2d(self.y)  # Ensure shape (n_exp, n_outputs)
+
+            if n_outputs == 1:
+                y_preds = y_preds.reshape(-1, 1)
+
+            fig, axes = plt.subplots(n_outputs, 1, figsize=(8, 4 * n_outputs))
+            if n_outputs == 1:
+                axes = [axes]
+
+            for j in range(n_outputs):
+                ax = axes[j]
+                preds_j = y_preds[:, j]  # shape: (n_samples,)
+                obs_j = y_obs[:, j]
+
+                pred_mean = preds_j.mean()
+                pred_hdi = np.percentile(preds_j, [2.5, 97.5])
+
+                ax.axhline(y=obs_j[0], color="black", linestyle="--", label="Observed")
+                ax.hist(preds_j, bins=30, alpha=0.6, color="skyblue", label="Posterior preds")
+                ax.axvline(pred_mean, color="blue", linestyle="-", label="Mean prediction")
+                ax.axvspan(pred_hdi[0], pred_hdi[1], alpha=0.2, color="blue", label="95% HDI")
+
+                ax.set_title(f"Prediction vs Observed (Output #{j+1})")
+                ax.set_xlabel("Predicted value")
+                ax.set_ylabel("Frequency")
+                ax.legend()
+
+            plt.tight_layout()
+
+            if save_path:
+                plt.savefig(save_path, dpi=300, bbox_inches="tight")
+                print(Fore.WHITE + f"---> [INFO] Plot saved to: {save_path}")
+            else:
+                plt.show()
+
+        except Exception as e:
+            print(Fore.RED + f"---> [ERROR] Failed to plot prediction vs observed: {e}")
+
+
 # ==============================================================================================
 # ------------------------
 # | Bayesian model class |
@@ -638,6 +1255,25 @@ from pytensor.graph.basic import Apply # type: ignore
 
 # Wrapper class to use the SMT Kriging model as a custom Aesara operation
 class SMStagline(Op):
+
+    """
+    PyTensor-compatible wrapper for a scalar-output surrogate (Kriging) model.
+
+    This custom `Op` allows a surrogate model to be integrated into a PyMC probabilistic graph.
+
+    Attributes:
+    - itypes: Input types for the Op (`pt.dvector`) : expects a 1D input vector of parameters.
+    - otypes: Output type of the Op (`pt.dscalar`) : returns a single scalar prediction.
+
+    Parameters:
+    - kriging_model: A trained surrogate model (e.g., Kriging) with a `predict_values()` method.
+
+    Methods:
+    - perform(): Reshapes the input vector into a 2D array, runs the surrogate model prediction,
+    and returns the scalar output to be used inside the PyMC model.
+    """
+
+
     itypes = [pt.dvector]
     otypes = [pt.dscalar]
 
@@ -651,6 +1287,27 @@ class SMStagline(Op):
 
 # Wrapper for vectorized surrogate model use (multiple predictions)
 class SMStaglineVectorized(Op):
+
+    """
+    PyTensor-compatible wrapper for a vector-output surrogate (Kriging) model handling multiple experiments.
+
+    This custom `Op` allows batch predictions from a surrogate model to be integrated into a PyMC model for
+    vectorized inference.
+
+    Attributes:
+    - itypes: Input types for the Op (`pt.dmatrix`) : expects a 2D input matrix of shape (n_exp, n_inputs),
+    where each row corresponds to a different experiment.
+    - otypes: Output type of the Op (`pt.dvector`) : returns a 1D array of scalar predictions (one per experiment).
+
+    Parameters:
+    - kriging_model: A trained surrogate model (e.g., Kriging) with a `predict_values()` method that supports batch input.
+
+    Methods:
+    - perform(): Receives a matrix of input samples, performs batch predictions using the surrogate model,
+    flattens the output, and returns a vector of predicted values.
+    """
+
+
     itypes = [pt.dmatrix]  # Input: matrix of shape (n_exp, n_inputs)
     otypes = [pt.dvector]  # Output: vector of shape (n_exp,)
 

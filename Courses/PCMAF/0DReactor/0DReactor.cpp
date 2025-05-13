@@ -32,8 +32,9 @@ extern "C" int ZeroDReactor(const char* mixture_file, double Tinlet, double Tsur
     xi_e = Map<const VectorXd>(mix.X(), ns);
 
     // Computation of surface mass balance
+    double dx_diff = 1e-3;
     mix.setSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
-    mix.setDiffusionModel(xi_e.data(), dx);
+    mix.setDiffusionModel(xi_e.data(), dx_diff);
     mix.setIterationsSurfaceBalance(3000);
     mix.solveSurfaceBalance();
     mix.getSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
@@ -54,29 +55,37 @@ extern "C" int ZeroDReactor(const char* mixture_file, double Tinlet, double Tsur
     double lambda = mix.equilibriumThermalConductivity();
 
     // Computation of conduction heat flux
-    double qw = (Tinlet - Tsurface) / dx * lambda;
+    //std::cout<<"---> [INFO] Thermal Conductivity : "<< lambda << endl;
+    double qw = - ((Tinlet - Tsurface) / dx) * lambda;
+
+    //std::cout<<"---> [INFO] Conduction heat flux : "<< qw << endl;
 
     // Computation of unit mass species enthlapy
     VectorXd h_s(ns);
-    mix.getEnthalpiesMass(h_s.data());
+
+    mix.speciesHOverRT(Tinlet,h_s.data());
 
     // Computation of species enthlapy
-    for (int i = 0 ; i < ns; i ++)
+    for (int i = 0 ; i < ns; i++)
     {
-        h_s[i] = h_s[i] * mix.Y()[i];
+        h_s[i] = h_s[i] * 8.314411 * Tinlet;
     }
 
     // Computation of total heat flux (conduction + catalysis)
-    for (int i = 0; i < ns; i++) {
+    for (int i = 0; i < ns; i++) 
+    {
         qw += wdot[i] * h_s[i];
     }
 
     // Cpying the values to return it in the python world
-    *qw_out = qw;
-    for (int i = 0; i < ns; ++i) 
+    *qw_out = std::abs(qw);
+    for (int i = 0; i < ns; i++) 
     {
         wdot_out[i] = wdot[i];  
     }
+
+    //std::cout<<"qw_out : "<< std::abs(qw) <<endl;
+    //std::cout<<"dx : "<< dx <<endl;
 
     return 0;
 }

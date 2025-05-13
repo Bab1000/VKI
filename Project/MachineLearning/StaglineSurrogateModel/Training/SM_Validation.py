@@ -18,7 +18,7 @@ print(Fore.BLUE + "[STEP] Loading the surrogate model")
 
 model_folder_name = "/home/jpe/VKI/Project/MachineLearning/StaglineSurrogateModel/Models"
 
-model_path = model_folder_name + "/SM_heatFlux"
+model_path = model_folder_name + "/SM_Gamma_Log"
 
 print(Fore.WHITE + f"---> [INFO] Loading Model: '{model_path}' ...")
 try:

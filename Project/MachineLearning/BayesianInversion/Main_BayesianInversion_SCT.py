@@ -57,7 +57,7 @@ Pstat,massflow,power,HF,off_set_HF,Pdyn,off_set_Pdyn,temperature = CSVReader(CSV
 
 # Target static pressure 
 # ----------------------
-target_pressure = [5000]
+target_pressure = [10000]
 target_massflow = 16
 tolerance_press = 300
 tolerance_mf = 3
@@ -72,6 +72,7 @@ off_set_Pdyn_test = []
 off_set_HF_test = []
 
 for targ_p in target_pressure:
+    
     for i,pstat in enumerate(Pstat):
 
         if pstat >= targ_p - tolerance_press and pstat <= targ_p + tolerance_press:
@@ -86,46 +87,44 @@ for targ_p in target_pressure:
                 off_set_HF_test.append(off_set_HF[i])
 
 
-for i in range(len(Pdyn_test)):
-    # Name pattern
-    #name_pattern = f"_TC={i}"
+    for i in range(len(Pdyn_test)):
+        # Name pattern
+        #name_pattern = f"_TC={i}"
 
-    # Initialization of the Bayesian model
-    model = BayesianInversion(HF_test[i],sm_q)
-    
-    model.add_priors("Pdyn","normal",mu = Pdyn_test[i],uncertainty=off_set_Pdyn_test[i])
-    model.add_priors("Pstat","normal",mu=Pstat_test[i],uncertainty=0.10*Pstat_test[i])
-    model.add_priors("T","normal",mu=T_test[i],uncertainty=0.10*T_test[i])
-    model.add_observed("HF", "normal", mu=HF_test[i], uncertainty=off_set_HF[i])
+        # Initialization of the Bayesian model
+        model = BayesianInversion(HF_test[i],sm_q)
+        
+        model.add_priors("Pdyn","normal",mu = Pdyn_test[i],uncertainty=off_set_Pdyn_test[i])
+        model.add_priors("Pstat","normal",mu=Pstat_test[i],uncertainty=0.10*Pstat_test[i])
+        model.add_priors("T","normal",mu=T_test[i],uncertainty=0.10*T_test[i])
+        #model.add_constant("Pdyn",Pdyn_test[i])
+        #model.add_constant("Pstat",Pstat_test[i])
+        #model.add_constant("T",T_test[i])
+        model.add_observed("HF", "normal", mu=HF_test[i], uncertainty=off_set_HF[i])
 
-    model.add_priors("GN","uniform", lower = -4, upper = 0)
-    model.add_priors("GO","uniform", lower = -4, upper = 0)
+        model.add_priors("GN","uniform", lower = -4, upper = 0)
+        model.add_priors("GO","uniform", lower = -4, upper = 0)
 
-    # Global path
-    # -----------
-    global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Single_Condition_Testing/Posterior_Pstat={target_pressure[0]/100}_T={T_test[i]}"
+        # Global path
+        # -----------
+        global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Test_plot/UnitCond/UniformG_Pstat={targ_p/100}/T={T_test[i]}"
 
-    # Path previous simulation for restart purposes
-    # ---------------------------------------------
-    # If restart is not required --> Leave this spot EMPTY
-    restart_path = save_path_posteriors = os.path.join(global_path,"Posteriors")
+        # Path for saving the bayesian inversion simulation
+        # -------------------------------------------------
+        # If saving is not required --> Leave this spot EMPTY
+        save_path_posteriors = os.path.join(global_path,"Posteriors")
 
-    # Path for saving the bayesian inversion simulation
-    # -------------------------------------------------
-    # If saving is not required --> Leave this spot EMPTY
-    save_path_posteriors = os.path.join(global_path,"Posteriors")
+        # Running 
+        trace, MAP_values, R_hat_all = model.run_inference(draws,tune,chain,cores,save_path=save_path_posteriors,restart=False)
 
-    # Running 
-    trace, MAP_values, R_hat_all = model.run_inference(draws,tune,chain,cores,save_path=save_path_posteriors,restart_path=restart_path)
+        # Plotting
+        save_path_results = os.path.join(global_path,"Results")
+        extension = "jpeg"
 
-    # Plotting
-    save_path_results = os.path.join(global_path,"Results")
-    extension = "jpeg"
+        model.plot_posteriors_custom(save_path_results,extension)
 
-    model.plot_posteriors_custom(save_path_results,extension)
+        # MAP/R_hat saving in CSV
+        SaveAnalysis(save_path_results,MAP_values,R_hat_all)
 
-    # MAP/R_hat saving in CSV
-    SaveAnalysis(save_path_results,MAP_values,R_hat_all)
-
-    #model.predict_from_posterior()
+        #model.predict_from_posterior()
 
