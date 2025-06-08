@@ -1,0 +1,11 @@
+<gsi gsi_mechanism = "phenomenological_mass">
+
+    <surface_properties type = "none" >
+    </surface_properties>
+
+    <surface_chemistry>
+    </surface_chemistry>
+    
+ 
+    
+</gsi>

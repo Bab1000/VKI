@@ -19,7 +19,7 @@ print(Fore.BLUE + "[STEP] Loading the surrogate model")
 
 model_folder_name = "/home/jpe/VKI/Project/MachineLearning/StaglineSurrogateModel/Models"
 
-model_path = model_folder_name + "/SM_heatFlux"
+model_path = model_folder_name + "/SM_Gamma_Log"
 
 print(Fore.WHITE + f"---> [INFO] Loading Model: '{model_path}' ...")
 try:
@@ -48,9 +48,9 @@ pstat = np.full(len(temperature), 1500)
 
 pstat_var = [1500, 5000, 10000, 20000]
 
-gammaN = np.full(len(temperature), 0.1)
+gammaN = np.full(len(temperature), -1)
 
-gamma0 = np.full(len(temperature), 0.1)
+gamma0 = np.full(len(temperature), -1)
 
 # ===========================================================================================
 
@@ -118,7 +118,7 @@ print(Fore.GREEN + "---> [SUCCESS] Model Predictions successful for pstat variat
 
 print(Fore.BLUE + "[STEP] Plotting the results")
 
-res_folder_name = "/home/jpe/VKI/Project/MachineLearning/StaglineSurrogateModel/Results"
+res_folder_name = "/home/jpe/VKI/Project/MachineLearning/StaglineSurrogateModel/Training/Results"
 
 print(Fore.WHITE + "---> [INFO] Generating visualization ...")
 
@@ -138,7 +138,7 @@ plt.figure(figsize=(7, 6))
 
 # Plot each line for varying pdyn values
 for i in range(len(YV_pdyn_list)):
-    label = f"Pdyn: {pdyn_var[i]} Pa, Pc: {pstat[0]/100:.0f} mbar"
+    label = f"Pdyn: {pdyn_var[i]} Pa"
     plt.plot(temperature, YV_pdyn_list[i], label=label, linewidth=2)
 
 # Add vertical line at T = 6000 K
@@ -158,7 +158,6 @@ plt.text(6750, y_text, "air_11", fontsize=13, fontweight='bold', color='black', 
 # Axis labels and title
 plt.xlabel(r"$\it{Temperature}$ [K]")
 plt.ylabel(r"$q_{wall}$ predicted [kW]")
-plt.title("Predicted heat flux vs Temperature", fontsize=14, pad=15)
 # Display the legend with background and shadow
 plt.legend(loc="upper left")
 # Ensure layout fits well
@@ -171,7 +170,7 @@ plt.close()
 plt.figure(figsize=(7, 6))
 # Plot each line for varying pstat values
 for i in range(len(YV_pstat_list)):
-    label = f"Pdyn: {pdyn[0]} Pa, Pc: {pstat_var[i]/100:.0f} mbar"
+    label = f"Pc: {pstat_var[i]/100:.0f} mbar"
     plt.plot(temperature, YV_pstat_list[i], label=label, linewidth=2)
 
 # Add vertical line at T = 6000 K
@@ -191,7 +190,6 @@ plt.text(6750, y_text, "air_11", fontsize=13, fontweight='bold', color='black', 
 # Axis labels and title
 plt.xlabel(r"$\it{Temperature}$ [K]")
 plt.ylabel(r"$q_{wall}$ predicted [kW]")
-plt.title("Predicted heat flux vs Temperature", fontsize=14, pad=15)
 # Display the legend with background and shadow
 plt.legend(loc="upper left")
 # Ensure layout fits well

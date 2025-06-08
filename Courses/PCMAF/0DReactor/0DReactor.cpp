@@ -1,91 +1,106 @@
 #include "mutation++.h"
 #include <Eigen/Dense>
+#include <fstream>
 
 using namespace Mutation;
 using namespace Eigen;
 using namespace std;
 
 // Fonction compatible C pour appel Python
-extern "C" int ZeroDReactor(const char* mixture_file, double Tinlet, double Tsurface, double Pstat, double dx, double* wdot_out, double* qw_out ) {
-    // Initialisation du gaz
-    MixtureOptions opts(mixture_file);
-    Mixture mix(opts);        
+extern "C" int ZeroDReactor(const char* mixture_file, double Tinlet, double Tsurface, double Pstat, double dx_diff,  double dx_cond, double* wdot_out, double* qw_out ) {
+        
+        //std::ifstream testfile(mixture_file);
+        //if (!testfile.good()) {
+        //    std::cerr << "[ERROR] Cannot open mixture file: " << mixture_file << std::endl;
+        //    return -2;
+        //} else {
+        //    std::cerr << "--> [INFO] Mixture file exists: " << mixture_file << std::endl;
+        //}
 
-    // General settings
-    const size_t set_state_with_rhoi_T = 1;
-    const size_t pos_T_trans = 0;
+        try {
 
-    // Number of species
-    size_t ns = mix.nSpecies();
-    // Number of energy equations
-    size_t nT = mix.nEnergyEqns();
+            MixtureOptions opts(mixture_file);
+            Mixture mix(opts);
 
-    // Equilibrium computation
-    mix.equilibrate(Tinlet, Pstat);
+            // General settings
+            const size_t set_state_with_rhoi_T = 1;
+            const size_t pos_T_trans = 0;
 
-    // Computation of the species densities
-    VectorXd rhoi_s(ns);   
-    mix.densities(rhoi_s.data());
-    
-    // Computation of species mass fraction
-    VectorXd xi_e(ns);
-    xi_e = Map<const VectorXd>(mix.X(), ns);
+            // Number of species
+            size_t ns = mix.nSpecies();
+            // Number of energy equations
+            size_t nT = mix.nEnergyEqns();
 
-    // Computation of surface mass balance
-    double dx_diff = 1e-3;
-    mix.setSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
-    mix.setDiffusionModel(xi_e.data(), dx_diff);
-    mix.setIterationsSurfaceBalance(3000);
-    mix.solveSurfaceBalance();
-    mix.getSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
+            // Equilibrium computation
+            mix.equilibrate(Tinlet, Pstat);
 
-    // Use the results of surface mass balance to compute reaction rates
-    mix.setState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
+            // Computation of the species densities
+            VectorXd rhoi_s(ns);   
+            mix.densities(rhoi_s.data());
+            
+            // Computation of species mass fraction
+            VectorXd xi_e(ns);
+            xi_e = Map<const VectorXd>(mix.X(), ns);
 
-    // Computation of reaction rates
-    VectorXd wdot(ns);
-    mix.surfaceReactionRates(wdot.data());
-    //std::cout << "\nSurface reaction rates: " << std::endl;
-    //for (int i = 0; i < mix.nSpecies(); ++i)
-    //{
-    //    std::cout << mix.speciesName(i) << ": " << wdot.data()[i] << '\n';
-    //}
+            // Computation of surface mass balance
+            mix.setSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
+            mix.setDiffusionModel(xi_e.data(), dx_diff);
+            mix.setIterationsSurfaceBalance(3000);
+            mix.solveSurfaceBalance();
+            mix.getSurfaceState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
 
-    // Computation of thermal conductivity
-    double lambda = mix.equilibriumThermalConductivity();
+            // Use the results of surface mass balance to compute reaction rates
+            mix.setState(rhoi_s.data(), &Tsurface, set_state_with_rhoi_T);
 
-    // Computation of conduction heat flux
-    //std::cout<<"---> [INFO] Thermal Conductivity : "<< lambda << endl;
-    double qw = - ((Tinlet - Tsurface) / dx) * lambda;
+            // Computation of reaction rates
+            VectorXd wdot(ns);
+            mix.surfaceReactionRates(wdot.data());
+            //std::cout << "\nSurface reaction rates: " << std::endl;
+            //for (int i = 0; i < mix.nSpecies(); ++i)
+            //{
+            //    std::cout << mix.speciesName(i) << ": " << wdot.data()[i] << '\n';
+            //}
 
-    //std::cout<<"---> [INFO] Conduction heat flux : "<< qw << endl;
+            // Computation of thermal conductivity
+            double lambda = mix.equilibriumThermalConductivity();
 
-    // Computation of unit mass species enthlapy
-    VectorXd h_s(ns);
+            // Computation of conduction heat flux
+            //std::cout<<"---> [INFO] Thermal Conductivity : "<< lambda << endl;
+            double qw = - ((Tinlet - Tsurface) / dx_cond) * lambda;
 
-    mix.speciesHOverRT(Tinlet,h_s.data());
+            //std::cout<<"---> [INFO] Conduction heat flux : "<< qw << endl;
 
-    // Computation of species enthlapy
-    for (int i = 0 ; i < ns; i++)
-    {
-        h_s[i] = h_s[i] * 8.314411 * Tinlet;
+            // Computation of unit mass species enthlapy
+            VectorXd h_s(ns);
+
+            mix.speciesHOverRT(Tinlet,h_s.data());
+
+            // Computation of species enthlapy
+            for (int i = 0 ; i < ns; i++)
+            {
+                h_s[i] = h_s[i] * 8.314411 * Tinlet;
+            }
+
+            // Computation of total heat flux (conduction + catalysis)
+            for (int i = 0; i < ns; i++) 
+            {
+                qw += wdot[i] * h_s[i];
+            }
+
+            // Cpying the values to return it in the python world
+            *qw_out = std::abs(qw);
+            for (int i = 0; i < ns; i++) 
+            {
+                wdot_out[i] = wdot[i];  
+            }
+
+            //std::cout<<"qw_out : "<< std::abs(qw) <<endl;
+            //std::cout<<"dx : "<< dx <<endl;
+
+            return 0;
+
+        } catch (std::exception& e) {
+            std::cerr << "[ERROR] Exception: " << e.what() << std::endl;
+            return -1;
+        }  
     }
-
-    // Computation of total heat flux (conduction + catalysis)
-    for (int i = 0; i < ns; i++) 
-    {
-        qw += wdot[i] * h_s[i];
-    }
-
-    // Cpying the values to return it in the python world
-    *qw_out = std::abs(qw);
-    for (int i = 0; i < ns; i++) 
-    {
-        wdot_out[i] = wdot[i];  
-    }
-
-    //std::cout<<"qw_out : "<< std::abs(qw) <<endl;
-    //std::cout<<"dx : "<< dx <<endl;
-
-    return 0;
-}

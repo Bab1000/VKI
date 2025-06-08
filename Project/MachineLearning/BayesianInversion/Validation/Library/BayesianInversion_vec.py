@@ -181,6 +181,7 @@ class BayesianInversion:
                         
                         # Building the input matrix for surrogate model
                         input_matrix = []
+                        all_row_var_names = []
 
                         # Gather infos for each test case
                         for tc in sorted_tc:
@@ -224,6 +225,7 @@ class BayesianInversion:
                             # Now reorder row and row_var_names according to the sorted indices
                             row = [row[i] for i in index_sorted_row]
                             row_var_names = [row_var_names[i] for i in index_sorted_row]
+                            all_row_var_names.append(row_var_names)
                                                                     
                             # Creating the global input matrix for the surrogate model
                             input_matrix.append(pt.stack(row))
@@ -232,6 +234,11 @@ class BayesianInversion:
                         SM_input = pt.stack(input_matrix, axis=0)  # shape: (n_exp, n_inputs)
                         # Prediction of the output of the model
                         SM_prediction = Stagline_SM(SM_input)
+
+                        header = [f"Input {i+1}" for i in range(len(self.input_names_order))]
+                        print(Fore.WHITE + f"\n=== Input matrix for the current simulation === ")
+                        print(tabulate(all_row_var_names, headers=header, tablefmt="fancy_grid"))
+                        print("\n")
 
                     else:
                         # Non-vectorized case
@@ -284,32 +291,30 @@ class BayesianInversion:
                 # ------------------------------------
 
                 try:
-                    counter = 0
+
                     if len(np.shape(self.y)) == 1 and len(self.y) > 1: 
-                        for dist in self.observed:
+                        # Ensure all observed distributions are normal
+                        all_normal = all(d["type"] == "normal" for d in self.observed)
+                        if not all_normal:
+                            raise ValueError("Vectorized implementation currently supports only normal distributions.")
 
-                            # Gathering distribution infos
+                        # Compute standard deviations from 95% confidence intervals
+                        sigmas = np.array([dist["uncertainty"] / 1.96 for dist in self.observed])
+
+                        # Create a single vectorized normal distribution
+                        pm.Normal("obs", mu=SM_prediction, sigma=sigmas, observed=self.y)
+
+                        # Display mapping between symbolic prediction and observations
+                        link_table = []
+                        for i, dist in enumerate(self.observed):
                             name = dist["name"]
-                            dist_type = dist["type"]
-                            mu = dist.get("mu")
-                            uncertainty = dist.get("uncertainty")
-                            lower = dist.get("lower")
-                            upper = dist.get("upper")
+                            obs_val = self.y[i]
+                            pred_expr = f"SM_prediction[{i}]"
+                            link_table.append([name, str(pred_expr), obs_val / 1000])
 
-                            # Construction of normal distribution
-                            if dist_type == "normal" and (mu is not None and uncertainty is not None):
-                                # Computation of standard deviation (95%)
-                                sigma = max(uncertainty / 1.96, 1e-2)
-                                # Uses Stagline SM for the observed quantities
-                                var = pm.Normal(name, mu=SM_prediction[counter], sigma=sigma, observed = self.y[counter])
-
-                            # Construction of normal distribution
-                            elif dist_type == "uniform" and (lower is not None and upper is not None):
-                                # Bulding uniform distribution
-                                var = pm.Uniform(name, lower=lower, upper=upper, observed = self.y[counter])
-
-                            else:
-                                raise ValueError(f"Unsupported distribution: {dist_type}")
+                        print(Fore.WHITE + f"\n === Mapping between Observations and Predictions === ")
+                        print(tabulate(link_table, headers=["Distribution", "SM Prediction (symbolic)", "Observed Value"], tablefmt="fancy_grid"))
+                        print("\n")
                     
                     else:
                         for dist in self.observed:
@@ -323,7 +328,7 @@ class BayesianInversion:
                             # Construction of normal distribution
                             if dist_type == "normal":
                                 # Computation of standard deviation (95%)
-                                sigma = max(uncertainty / 1.96, 1e-2)
+                                sigma = uncertainty / 1.96
                                 # Uses Stagline SM for the observed quantities
                                 var = pm.Normal(name, mu=SM_prediction, sigma=sigma, observed = self.y)
 

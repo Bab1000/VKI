@@ -259,7 +259,7 @@
         CALL library_set_wall_state( rhoi_wall, Twall)
          
 
-        CALL library_set_wall_radiation(wall_Rad)
+        !CALL library_set_wall_radiation(wall_Rad)
         
         ! Solve the surface mass balance
         CALL library_solve_surface_balance()

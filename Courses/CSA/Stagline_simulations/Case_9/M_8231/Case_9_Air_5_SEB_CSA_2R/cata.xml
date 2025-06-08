@@ -1,0 +1,11 @@
+<gsi gsi_mechanism = "phenomenological_mass_energy">
+
+    <surface_properties type = "none" >
+    </surface_properties>
+
+    <surface_chemistry>
+    </surface_chemistry>
+    
+    <surface_radiation emissivity="1." T_env="0."/>
+    
+</gsi>

@@ -2,9 +2,6 @@ import re
 import numpy as np
 import pandas as pd
 
-
-
-
 def extract_mdot(filepath):
     match = re.search(r"mdot=([\d\.]+)", filepath)
     return float(match.group(1)) if match else None

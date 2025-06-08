@@ -1,0 +1,16 @@
+<gsi gsi_mechanism="phenomenological_mass">
+ 
+    <surface_properties type="none">
+    </surface_properties>
+ 
+    <surface_chemistry>
+        <reaction type="catalysis" formula="N + N => N2">
+            <gamma_const>N:0.00056</gamma_const>
+        </reaction>
+ 
+        <reaction type="catalysis" formula="O + O => O2">
+            <gamma_const>O:0.00222</gamma_const>
+        </reaction>
+    </surface_chemistry>
+ 
+</gsi>

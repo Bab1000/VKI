@@ -44,20 +44,39 @@ for Temperature in Temperatures:
 
 plt.figure(figsize=(12,8))
 plt.tight_layout()
+
 for i in range(ns):
-    plt.plot(Temperatures, species_descriptor[:, i], label=mix.speciesName(i))
+    plt.plot(
+        Temperatures,
+        species_descriptor[:, i],
+        label=mix.speciesName(i),
+        linewidth=2.5  # Épaisseur du trait
+    )
     ax = plt.gca()
 
-    xvals = [6000, 5000, 3000, 3900, 1800] #position of the label Air 5
-    #xvals = [15000, 14000, 13000, 12000, 16000, 17000, 6000, 5000, 3000, 3900, 1800] #position of the label Air 11
-    #xvals = [13500, 13000, 14000, 7900, 7000, 5000, 700, 3200]
+# Labels sur les lignes
+xvals = [6000, 5000, 3000, 3900, 1800]
+labelLines(ax.get_lines(), align=True, fontsize=12, ha='left', xvals=xvals)
 
-    labelLines(plt.gca().get_lines(), align=True, fontsize=10, ha='left', xvals=xvals)
+# Labels d’axes (grande taille)
+plt.ylabel("mole fraction", rotation=90, fontsize=16)
+plt.xlabel('Temperature, K', fontsize=16)
 
-    plt.ylabel("mole fraction", rotation=90)
-    plt.xlabel('Temperature, K')
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+# Style des ticks
+ax.tick_params(
+    axis='both',
+    labelsize=14,     # taille du texte
+    width=2,          # épaisseur des petits traits (ticks)
+    length=8,         # longueur des ticks
+    direction='inout' # ticks vers l'intérieur ET l'extérieur
+)
+
+# Optionnel : rend les ticks visibles de tous côtés
+ax.tick_params(top=True, right=True)
+
+# Nettoyage esthétique
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
 
 plt.show()
     

@@ -46,6 +46,7 @@ load_data(validation_y_file, validation_x_file, XV, YV,desc="---> [INFO] Loading
 
 # Convert lists to NumPy arrays
 XV, YV = np.array(XV), np.array(YV) / 1000  # Convert to kW
+print(f"Total training points:{len(XV)}")
 
 # ===========================================================================================
 
@@ -111,8 +112,37 @@ plt.scatter(YV, YV_K, label="Stagline data vs predictions", alpha=0.7)
 plt.legend(loc="upper left")
 plt.xlabel(r"$q_{wall}$ from Stagline [kW]", fontsize=14)
 plt.ylabel(r"$q_{wall}$ predicted [kW]", fontsize=14)
-plt.title("Model Prediction Performance")
 # Save figure in high resolution
 plt.savefig(res_folder_name + "/ModelPerformance.jpeg", format='jpeg', dpi=300, bbox_inches='tight')
 
-print(Fore.GREEN + f"---> [SUCCESS] Results successfully ploted in {res_folder_name + "/ModelPerformance.pdf"}")
+plt.figure(figsize=(7, 6))
+
+# Identity line
+plt.plot([np.min(YV), np.max(YV)], [np.min(YV), np.max(YV)], 'r--', linewidth=2, label="Perfect Fit")
+
+# Scatter plot
+plt.scatter(YV, YV_K, label=r"Stagline vs Surrogate", alpha=0.7)
+
+# Axis labels
+plt.xlabel(r"$q_{\mathrm{wall}}$ from STAGLINE [kW]", fontsize=14)
+plt.ylabel(r"$q_{\mathrm{wall}}$ predicted [kW]", fontsize=14)
+
+# Legend
+plt.legend(loc="upper left", fontsize=12, frameon=False, shadow=False)
+
+# Grid
+plt.grid(True)
+
+# Match spines color to grid color
+ax = plt.gca()
+grid_color = ax.yaxis.get_gridlines()[0].get_color()
+for spine in ax.spines.values():
+    spine.set_edgecolor(grid_color)
+    spine.set_linewidth(1.0)
+
+# Save
+plt.tight_layout()
+plt.savefig(res_folder_name + "/ModelPerformance_HomogeneousStyle.jpeg", format='jpeg', dpi=300, bbox_inches='tight')
+plt.close()
+
+print(Fore.GREEN + f"---> [SUCCESS] Results successfully plotted in {res_folder_name + '/ModelPerformance.jpeg'}")

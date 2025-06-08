@@ -287,3 +287,55 @@ def plot_joint_GN_GO(samples):
 
     plt.savefig(output_path, format='jpeg', dpi=300, bbox_inches='tight')
     plt.close()
+
+def GN_GO_plotting(samples,targ_p,global_output_path):
+    try:
+        GN = samples["GN"].values.flatten()
+        GO = samples["GO"].values.flatten()
+    except Exception as e:
+        print(f"[ERROR] Cannot extract GN/GO from samples: {e}")
+
+    if GN.size > 0 and GO.size > 0:
+        # Create 1D KDEs
+        kde_gn = gaussian_kde(GN)
+        kde_go = gaussian_kde(GO)
+
+        # Create evaluation range
+        min_val = min(GN.min(), GO.min())
+        max_val = max(GN.max(), GO.max())
+        x_grid = np.linspace(min_val, max_val, 1000)
+
+        # Evaluate KDEs
+        y_gn = kde_gn(x_grid)
+        y_go = kde_go(x_grid)
+
+        # Define uniform prior over [-4, 0]
+        min_gammaN = -4
+        delta_gammaN = 4
+
+        # Support of the prior
+        x_prior = [min_gammaN, min_gammaN + delta_gammaN]  # [-4, 0]
+
+        # Constant density value for uniform distribution
+        y_prior = [1 / delta_gammaN, 1 / delta_gammaN]  # [0.25, 0.25]
+
+        # Plot both KDEs
+        # Plot
+        plt.figure(figsize=(8, 5))
+        plt.plot(x_grid, y_gn, color="#4A90E2", label="GN")  # bleu pastel
+        plt.fill_between(x_grid, y_gn, color="#4A90E2", alpha=0.3)
+
+        plt.plot(x_grid, y_go, color="#7ED6A5", label="GO")  # vert pastel
+        plt.fill_between(x_grid, y_go, color="#7ED6A5", alpha=0.3)
+
+        plt.plot(x_prior, y_prior, color='red', linewidth=1.5, linestyle='--', label='Prior')
+
+        plt.title("KDE of GN and GO")
+        plt.xlabel("log10(Gamma)")
+        plt.ylabel("Probability Density")
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(global_output_path + f"/GN_GO_{targ_p/100}.jpeg", format='jpeg', dpi=300, bbox_inches='tight')
+    else:
+        print("[WARNING] One or both of GN and GO arrays are empty.")

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import root_scalar
+import subprocess
 
 def LoadNASACoeffs():
 
@@ -61,6 +62,26 @@ def LoadMolarMass():
 
     return SpeciesMolarMasses
 
+def MPPMassFractions(T,Pstast,mixture="air_5"):
+    command = f"mppequil -T {T} -P {Pstast} -s 2 {mixture}"
+    result = subprocess.check_output(command, shell=True).decode("utf-8")
+    
+    # Extract the last line and split values while filtering out empty strings
+    mass_fractions_values = result.strip().split("\n")[-1].split()
+
+    # Remove any empty strings from the list
+    mass_fractions_values = [val for val in mass_fractions_values if val.strip()]
+
+    mass_fractions = {
+        "N": float(mass_fractions_values[0]),
+        "O": float(mass_fractions_values[1]),
+        "NO": float(mass_fractions_values[2]),
+        "N2": float(mass_fractions_values[3]),
+        "O2": float(mass_fractions_values[4])
+    }
+    
+    return mass_fractions
+
 def NASA_cp_species(species,T):
 
     # Loading the coefficients
@@ -92,24 +113,22 @@ def NASA_cp_species(species,T):
 
     return cpi,Ri
 
-def gamma_T(cp,R):
-    # Computing cv
-    cv = cp - R
+def gamma_T(cp,Pstat,T,mixture = "air_5"):
+
+    command = f"mppequil -T {T} -P {Pstat} -m 17 {mixture}"
+    result = subprocess.check_output(command, shell=True).decode("utf-8")
+    
+    # Extract the last line and split values while filtering out empty strings
+    cv = result.strip().split("\n")[-1].split()
+
+    # Remove any empty strings from the list
+    cv = float(cv[0])
+
     # Computing species gamma
     gamma_i = cp / cv
     return gamma_i
 
-def LoadMassFraction():
-    MassFraction = {
-        "N" : 2.39879e-80,
-        "O" : 1.25697e-41,
-        "NO" : 2.69731e-16,
-        "N2" : 0.767082,
-        "O2" : 0.232918
-    }
-    return MassFraction
-
-def stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma):
+def stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma,Pstat):
 
     # Storage for species enthalpy
     h_i_list = []
@@ -144,7 +163,7 @@ def stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma):
         R_i_list.append(Ri)
 
     # Loading species molar mass
-    MassFraction = LoadMassFraction()
+    MassFraction = MPPMassFractions(T,Pstat)
     MolarMass = LoadMolarMass()
 
     R = 0.0
@@ -156,9 +175,6 @@ def stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma):
         species = list_species[i]
         # Gathering the species molar mass
         Y_i = MassFraction[species]
-        #Gathering species Molar mass
-        MM_i = MolarMass[species]
-
         # Computing global R
         R += Y_i * R_i_list[i]
         # Computing global cp
@@ -167,22 +183,59 @@ def stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma):
         h += Y_i * h_i_list[i]
 
     # Computing gamma
-    #gamma = gamma_T(cp,R)
+    gamma_cv = gamma_T(cp,Pstat,T)
 
-    V_squared = M1**2 * gamma * R * T
+    V_squared = M1**2 * gamma_cv * R * T
 
     return h + 0.5 * V_squared - H0_target
 
-def UpstreamT(M1,H0_target,list_species,gamma):
+def UpstreamT(M1,H0_target,list_species,gamma,Pstat):
     # Solve for T1
     sol = root_scalar(
-        lambda T: stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma),
+        lambda T: stagnation_enthalpy_residual(M1,H0_target,list_species,T,gamma,Pstat),
         bracket=[200, 20000],
         method='brentq'
     )
     
     T1_solution = sol.root if sol.converged else None
+
+    MassFraction = MPPMassFractions(T1_solution,Pstat)
+
+    R_i_list = []
+
+    for species in list_species:
+
+        # Load coefficients
+        NASAcoefficients = LoadNASACoeffs()
+
+        # Getting the coefficients
+        if T1_solution >= 6000:
+            coeffs = NASAcoefficients[species]['high_T']
+        elif T1_solution >= 1000 and T1_solution < 6000:
+            coeffs = NASAcoefficients[species]['mid_T']
+        elif T1_solution < 1000:
+            coeffs = NASAcoefficients[species]['low_T']
+
+        #Computing cp
+        cp_i,Ri = NASA_cp_species(species,T1_solution)
+        # Computing species enthalpy
+        h_i = cp_i * T1_solution
+        #h_i_RiT = -coeffs[0]*T**-2 + coeffs[1]*np.log(T)*T**-1 + coeffs[2] + coeffs[3]*T/2 + coeffs[4]*T**2/3 + coeffs[5]*T**3/4 + coeffs[6]*T**4/5 + coeffs[6]/T
+        #h_i = h_i_RiT * Ri * T
+        # Saving species R
+        R_i_list.append(Ri)
+
+    R = 0.0
+
+    for i in range(len(list_species)):
+        # Gathering the species
+        species = list_species[i]
+        # Gathering the species molar mass
+        Y_i = MassFraction[species]
+        # Computing global R
+        R += Y_i * R_i_list[i]
+
     
     print(f"Static Temperature upstream of shock (air5): {sol.root:.2f} K")   
 
-    return T1_solution 
+    return T1_solution,R

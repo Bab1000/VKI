@@ -356,7 +356,7 @@ def replace_init_cond(lines,init_cond):
                     a += 1  
 
 
-            if line.strip() == "# Physical variable values (species densities, velocity components and temperatures) ":
+            if line.strip() == "# Physical variable values (species densities, velocity components and temperatures)":
 
                 density_counter = 0
 
@@ -385,6 +385,7 @@ def replace_init_cond(lines,init_cond):
                     a = i + 3 + density_counter + velocity_counter + j
 
                     lines[a] = str(value) + "\n"
+                    lines[a+1] = str(value) + "\n"
 
 def PdynToVelocity(pdyn, rho, mu, R):
     def equation(U):

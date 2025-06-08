@@ -3,7 +3,7 @@ import pandas as pd
 import multiprocessing as mlt
 from colorama import Fore, Style, init
 
-from Library.BayesianInversion_vec import *
+from Library.BayesianInversion_Vec_Dual_G import *
 from Library.Utils_BayesianInversion import *
 
 # Initialize colorama
@@ -16,13 +16,13 @@ init(autoreset=True)
 # ---------------------------------
 
 # Bayesian inversion steps
-draws = 500000
+draws = 1000
 
 # Warm-up steps
 tune = int(0.20*draws)
 
 # Number of computation chains
-chain = 10
+chain = 5
 
 # Number of core used
 cores = mlt.cpu_count()
@@ -63,8 +63,8 @@ Pstat,massflow,power,HF,off_set_HF,Pdyn,off_set_Pdyn,temperature = CSVReader(CSV
 
 # Target static pressure 
 # ----------------------
-target_pressure = [1500, 5000, 10000, 20000]
-target_massflow = [20]
+target_pressure = [1500]
+target_massflow = [16]
 tolerance_press = 300
 tolerance_mf = 3
 
@@ -115,7 +115,7 @@ for targ_p in target_pressure:
 
         # Global path
         # -----------
-        global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Mass_Flow_based_testing/UniformG_MultiCond_Pstat={targ_p/100}/MassFlow={targ_mf}"
+        global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Simulations/Test_vectorized_observed/UniformG_MultiCond_Pstat={targ_p/100}/MassFlow={targ_mf}"
 
         # Path for saving the bayesian inversion simulation
         # -------------------------------------------------

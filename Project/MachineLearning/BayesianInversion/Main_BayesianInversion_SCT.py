@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from Library.BayesianInversion_vec import *
+from Library.BayesianInversion_Vec_Dual_G import *
 from Library.Utils_BayesianInversion import *
 
 # ========================================================================

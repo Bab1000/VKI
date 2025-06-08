@@ -11,9 +11,18 @@ df = pd.read_csv(XTrainingData_path, sep=r'\s+')
 Temperatures = df["Tedg[K]"].values
 gammaN = df["GN"]
 gammaO = df["GO"]
+Pstat= df["psta[Pa]"]
+Pdyn= df["pdyn[Pa]"]
 
 print(f"Max GN training = {max(gammaN)}")
 print(f"Max GO training = {max(gammaO)}")
+print(f"Max Pstat training = {max(Pstat)}")
+print(f"Min Pstat training = {min(Pstat)}")
+print(f"Max T training = {max(Temperatures)}")
+print(f"Min T training = {min(Temperatures)}")
+print(f"Max Pdyn training = {max(Pdyn)}")
+print(f"Min Pdyn training = {min(Pdyn)}")
+
 
 # Reading outputs training data 
 df = pd.read_csv(YTrainingData_path, sep=r'\s+')
@@ -21,7 +30,7 @@ qwall = df["qwall"].values/1000
 residuals = df["res"].values
 
 # Concatenating both vectors
-Res_vec = np.column_stack((Temperatures, qwall,residuals))
+Res_vec = np.column_stack((Temperatures, qwall,residuals,Pstat))
 
 # Mask for NotConv values
 mask = Res_vec[:,2] != "NotConv"
@@ -33,6 +42,27 @@ Res_vec_sorted = Res_vec[Res_vec[:, 0].argsort()]
 # Dropping non-converged values
 mask = Res_vec_sorted[:,2].astype(float) <= -2
 Res_vec_sorted = Res_vec_sorted[mask]
+
+print(f"Total training points:{len(Res_vec_sorted)}")
+
+# ===========================================
+
+plt.figure()
+
+mask_Pstat = (Res_vec_sorted[:,3].astype(float) >= 500) & (Res_vec_sorted[:,3].astype(float) <= 2000)
+
+# Affichage des points filtrés
+plt.scatter(Res_vec_sorted[mask_Pstat, 3], Res_vec_sorted[mask_Pstat, 0], s=10, c='blue', alpha=0.7)
+
+plt.xlabel("Static pressure [Pa]")
+plt.ylabel("Temperature [K]")
+plt.savefig("PstatvsT.jpeg", format='jpeg', dpi=300, bbox_inches='tight')
+plt.close()
+
+
+
+# ===========================================
+
 
 # Plot the results
 plt.figure()

@@ -41,7 +41,7 @@ sm_q = LoadModel(model_path)
 # ----------------------
 
 Pdyn = np.linspace(40, 200, 5)               
-Pstat = np.full(5, 1500)                      
+Pstat = np.full(5, 5000)                      
 T = np.linspace(6000, 8000, 5)               
 GN = np.full(5, -2)                      
 GO = np.full(5, -3)                        
@@ -68,7 +68,7 @@ model.add_priors("GO", "uniform", lower=-4, upper=0)
 
 # Global path
 # -----------
-global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Validation/Numerical_test_case"
+global_path = f"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Validation/Numerical_test_case_50mbar"
 
 # Path for saving the bayesian inversion simulation
 # -------------------------------------------------

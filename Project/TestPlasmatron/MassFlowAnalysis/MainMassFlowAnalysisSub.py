@@ -14,10 +14,10 @@ import sys
 # ------
  
 # Name of the mixture
-mixture = "air_7"
+mixture = "air_5"
 
 # Number of species according to the mixture used
-n_species = "7"
+n_species = "5"
  
 # Initial value of the CFL
 cfl_val = "1.0d-3"
@@ -26,26 +26,26 @@ cfl_val = "1.0d-3"
 Twall = "350"
  
 # Method to change the CFL
-cfl_adaptive = ".FALSE."
-cfl_inter = ".TRUE."
+cfl_adaptive = ".TRUE."
+cfl_inter = ".FALSE."
 Log_CFL = ".FALSE."
 
 # Stop condition
 residual = -2.0
 
 # Restarting from previous simulation
-restart = ".TRUE."
+restart = ".FALSE."
 
 # Restart from previously converged air_7 simulation (Can be turned to True only if restart is True)
 air_5_restart = ".FALSE."
 
 # Management of CFL (air_7 15mbar)
-#CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
-#Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
+CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
+Iter       = [   45,  95, 145, 195, 245, 295, 595, 795, 1245, 1445, 1745, 1845]
 
 # Management of CFL (air_7) WITH RESTART FILES
-CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
-Iter       = [   45,  95, 145, 195, 245, 295, 395, 495,  595, 695,  795, 895]
+#CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
+#Iter       = [   45,  95, 145, 195, 245, 295, 395, 495,  595, 695,  795, 895]
 
 # Management of CFL (air_11 15mbar)
 #CFL_range  = [ 0.01, 0.1, 0.5, 1.0, 5.0,  10,  50, 100,  250,  500, 1000, 5000]
@@ -73,10 +73,10 @@ pressure,massflow,power,pitot,temperature = CSVReader(CSV_path,columns_to_check)
 # ----------------------------------------------
 
 # Target Pressure [mbar]
-target_pressure = [15]
+target_pressure = [15,50,100]
 
 # Target Power [kW]
-target_power = [150]
+target_power = [350]
 
 # Tolerance
 tolerance = 3.6
@@ -124,7 +124,7 @@ for h, targ_p in enumerate(target_pressure):
                 # -----------------------------------------------------------------------------
                 
                 # Simulation folder path
-                stagline_simulations_path = f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/{mixture}_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
+                stagline_simulations_path = f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Check_right_input/{mixture}_sim/Pc={targ_p}_Pw={targ_P}/mdot={mdot}"
 
                 # Restart Simulation folder path
                 stagline_restart_simulations_path = f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/{mixture}_sim_old/Pc={targ_p}_Pw={targ_P}/mdot={mdot}/*"

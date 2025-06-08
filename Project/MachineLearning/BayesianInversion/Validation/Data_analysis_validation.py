@@ -74,6 +74,8 @@ MAP_plots(
     annotate=True
 )
 
+GN_GO_plotting(samples,1500,"/home/jpe/VKI/Project/MachineLearning/BayesianInversion/Validation/Numerical_test_case/Plots")
+
 
 
 
