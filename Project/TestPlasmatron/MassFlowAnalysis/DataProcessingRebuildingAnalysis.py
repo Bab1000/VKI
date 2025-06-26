@@ -356,4 +356,71 @@ for press in targ_p:
     axes_p0[-1].set_xlabel("Temperature T (K)")
     plt.savefig(f"/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Pressure/p0Comparison_Pc={press}.jpeg", format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
     
+    # ========================================================================
+    # | PLOTTING q_tot vs h_edge for AIR_7 ONLY with error bars on experiments |
+    # ========================================================================
+
+    for i, mdot in enumerate([10, 16, 20]):
+
+        # Initialize figure
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        # Filter only air_7 data
+        df_air7 = df[df["Label"] == "air_7"]
+        df_mdot = df_air7[df_air7["mdot"] == mdot]
+
+        if df_mdot.empty:
+            continue  # skip if no data to plot
+
+        # Plot simulation curve (air_7)
+        ax.plot(df_mdot["h_edge"]/1e6, np.abs(df_mdot["q_tot"]) / 1000,
+                linestyle='--', marker='o', markersize=7,
+                color='tab:green', linewidth=line_width,
+                label="air_7 - Simulation")
+
+        # Prepare experimental data
+        size_x = len(df_mdot["h_edge"])
+        size_y = len(exp_HF_data[mdot])
+
+        if size_y > size_x:
+            exp_HF_data_corr = exp_HF_data[mdot][1:]
+            T_mdot_corr = T_mdot_data[mdot][1:]
+        else:
+            exp_HF_data_corr = exp_HF_data[mdot]
+            T_mdot_corr = T_mdot_data[mdot]
+
+        # Compute ±15% error bars
+        y_exp = np.abs(exp_HF_data_corr)
+        y_err = 0.10 * y_exp
+
+        # Plot experimental data with error bars
+        ax.errorbar(df_mdot["h_edge"]/1e6, y_exp,
+                    yerr=y_err,
+                    fmt='D', markersize=8,
+                    color='tab:green', ecolor='black',
+                    elinewidth=1.5, capsize=5, capthick=1,
+                    markeredgecolor='black', markeredgewidth=1.5,
+                    alpha=0.9, zorder=3,
+                    label="Experimental Data ±15%")
+
+        # Configure plot
+        ax.set_ylabel("q_tot (kW/m²)", fontsize=12)
+        ax.set_xlabel("Enthalpy at BL edge (MJ/kg)", fontsize=12)
+        ax.set_title(f"mdot = {mdot} g/s", fontsize=12)
+        ax.grid(True, linestyle='--', linewidth=0.7)
+        ax.legend(fontsize=10, loc="upper left", frameon=True)
+
+        # Save figure
+        plot_name = f"HFComparison_vs_h_edge_AIR7_ONLY_Pc={press}_mdot={mdot}.jpeg"
+        output_path = os.path.join("/home/jpe/VKI/Project/TestPlasmatron/MassFlowAnalysis/Results_Rebuilding/Heat_flux/", plot_name)
+        plt.savefig(output_path, format='jpeg', dpi=600, bbox_inches='tight', transparent=True)
+        plt.close()
+
+
+
+
+
+
     all_results.clear()
+
+

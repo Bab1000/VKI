@@ -2,6 +2,7 @@ from Utils_0DReactor import *
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from tqdm import tqdm
 
 
 # === Compilation + Loading of the model ===
@@ -41,9 +42,9 @@ print(Fore.GREEN + "[SUCCESS] Training data successfully loaded!")
 
 # === Runing 0DReactor ===
 
-results_path = "/home/jpe/VKI/Courses/PCMAF/Results"
+results_path = "/home/jpe/VKI/Courses/PCMAF/Results/Same_dx"
 
-path_csv = os.path.join(results_path,f"Res_tuning_Pstat_Stagline_Single_dx.csv")
+path_csv = os.path.join(results_path,f"Res_tuning_Pstat_Stagline_dx_conv_only.csv")
 
 Results = []
 inputs = []
@@ -54,7 +55,7 @@ for idx, line in enumerate(XT):
         inputs.append(line)
         HF.append(YT[idx])
 
-for i in range(len(inputs)):
+for i in tqdm(range(len(inputs)), desc="Processing", unit="sample"):
     input = inputs[i]
     mixture = f"air_11"
     Tinlet = input[2]       # [K]
@@ -67,7 +68,7 @@ for i in range(len(inputs)):
 
     update_gsi_gamma("gsi_surface_cat.xml",gamma_n,gamma_o)
 
-    wdot, qw, dx_diff, dx_conv, error = run0DReactorSingledx(mixture,Tinlet,Tsurface,Pstat_in,qexp,exe_file,n_species)
+    wdot, qw, dx_diff, dx_conv, error = run0DReactorSingle_dxConvOnly(mixture,Tinlet,Tsurface,Pstat_in,qexp,exe_file,n_species)
 
     if error < qexp /1000 * 0.2:
         Results.append({

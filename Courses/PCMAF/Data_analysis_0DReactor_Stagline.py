@@ -36,39 +36,28 @@ load_data(train_Y_file, train_X_file, XT, YT, desc="Loading Training Data")
 
 print(Fore.GREEN + "[SUCCESS] Training data successfully loaded!")
 
-CSV_name = f"/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Res_tuning_Pstat_Stagline_Single_dx.csv"
+CSV_name = f"/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Res_tuning_Pstat_Stagline_dx_conv_only.csv"
 
 df = pd.read_csv(CSV_name)
 
 index = set(df["index"])
 
-# Créer l'ensemble des indices valides (comme tu filtres XT)
-valid_idx = [idx for idx, line in enumerate(XT) if idx in index and line[2] > 7000]
-
-# Filtrer df en conséquence
-df_filtered = df[df["index"].isin(valid_idx)].reset_index(drop=True)
-
 # Extraire les colonnes filtrées
-T = df_filtered["Tinlet"].values
-Pstat = df_filtered["Pstat"].values / 100
-dx_diff = df_filtered["dx_diff"].values
-dx_conv = df_filtered["dx_conv"].values
+T = df["Tinlet"].values
+Pstat = df["Pstat"].values / 100
+dx_diff = df["dx_diff"].values
+dx_conv = df["dx_conv"].values
 
-inputs = []
-for idx, line in enumerate(XT): 
-    if line[2] > 7000 :
-        inputs.append(line)
+# Calcul du masque : log10(dx) < -3 équivaut à dx < 1e-3
+#mask = (np.log10(dx_diff) > -3) & (np.log10(dx_conv) > -3)
 
-inputs = [line for idx, line in enumerate(XT) if idx in index]
+# Application du filtre
+dx_diff_filtered = dx_diff
+dx_conv_filtered = dx_conv
+T = T
+Pstat = Pstat
 
-gamma_n = []
-gamma_o = []
-for idx,input in enumerate(inputs):
-    gamma_n.append(input[3])
-    gamma_o.append(input[4])
-
-gamma_n = np.array(gamma_n)
-gamma_o = np.array(gamma_o)
+print(np.shape(T))
 
 # ======================================================================================================================
 
@@ -161,44 +150,81 @@ def train_compare_models(T, Pstat, Y, test_size=0.2, seed=42):
 results_dx_diff = train_compare_models(
     T=T,
     Pstat=Pstat,
-    Y=dx_diff
+    Y=dx_diff_filtered
 )
 
 results_dx_conv = train_compare_models(
     T=T,
     Pstat=Pstat,
-    Y=dx_conv
+    Y=dx_conv_filtered
 )
 
 # ======================================================================================================================
-
-# Plotting
+# Plotting avec colorbar
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(T, Pstat, np.log10(dx_diff))
+
+log_dx_diff = np.log10(dx_diff_filtered)
+sc1 = ax.scatter(T, Pstat, log_dx_diff, c=log_dx_diff, cmap='viridis')
+cb1 = plt.colorbar(sc1, ax=ax, pad=0.1)
+cb1.set_label('log10(dx_diff)', fontsize=12)
 
 ax.set_xlabel('T [K]')
 ax.set_ylabel('Pstat [mbar]')
 ax.set_zlabel('log10(dx_diff)')
 
 plt.tight_layout()
-plt.savefig(f"/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Plots/Res_dx_diff.jpeg",format='jpeg', dpi=300, bbox_inches='tight')
-#plt.show()
+plt.savefig("/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Plots/Res_dx_diff_colored.jpeg",
+            format='jpeg', dpi=300, bbox_inches='tight')
 plt.close()
 
 
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
-ax.scatter(T, Pstat, np.log10(dx_conv))
+
+log_dx_conv = np.log10(dx_conv_filtered)
+sc2 = ax.scatter(T, Pstat, log_dx_conv, c=log_dx_conv, cmap='plasma')
+cb2 = plt.colorbar(sc2, ax=ax, pad=0.1)
+cb2.set_label('log10(dx_conv)', fontsize=12)
 
 ax.set_xlabel('T [K]')
 ax.set_ylabel('Pstat [mbar]')
 ax.set_zlabel('log10(dx_conv)')
 
 plt.tight_layout()
-plt.savefig(f"/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Plots/Res_dx_conv.jpeg",format='jpeg', dpi=300, bbox_inches='tight')
-#plt.show()
+plt.savefig("/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Plots/Res_dx_conv_colored.jpeg",
+            format='jpeg', dpi=300, bbox_inches='tight')
 plt.close()
 
 
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import griddata
+
+# === Données ===
+X_plot = np.column_stack((T, Pstat))  # shape (N, 2)
+Z_plot = np.log10(dx_conv_filtered)   # shape (N,)
+
+# === Création d’une grille régulière ===
+print(f"log10(dx_diff) min = {Z_plot.min():.4f}, max = {Z_plot.max():.4f}")
+T_lin = np.linspace(T.min(), T.max(), 200)
+Pstat_lin = np.linspace(Pstat.min(), Pstat.max(), 200)
+T_grid, Pstat_grid = np.meshgrid(T_lin, Pstat_lin)
+
+# === Interpolation sur la grille ===
+Z_grid = griddata(X_plot, Z_plot, (T_grid, Pstat_grid), method='linear')
+
+# === Affichage ===
+plt.figure(figsize=(10, 7))
+contour = plt.contourf(T_grid, Pstat_grid, Z_grid, levels=100, cmap='viridis')
+cb = plt.colorbar(contour)
+cb.set_label('log10(dx_diff)', fontsize=12)
+
+plt.xlabel('T [K]')
+plt.ylabel('Pstat [mbar]')
+plt.title('Colormap log10(dx_diff)')
+plt.tight_layout()
+plt.savefig("/home/jpe/VKI/Courses/PCMAF/Results/Same_dx/Plots/Colormap_dx.jpeg",
+            format='jpeg', dpi=300, bbox_inches='tight')
+plt.close()

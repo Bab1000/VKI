@@ -130,7 +130,7 @@ def run0DReactorMultidx(mixture,Tinlet,Tsurface,Pstat,qexp,exe_file,n_species):
 
     # Initialisation of the minimisation process
     initial_guess = [-3, -3]
-    bounds = [(-6, 0), (-6, 0)]
+    bounds = [(-4, 0), (-4, 0)]
 
     # Minimization
     try:
@@ -167,7 +167,11 @@ def run0DReactorMultidx(mixture,Tinlet,Tsurface,Pstat,qexp,exe_file,n_species):
         print(Fore.MAGENTA + f"[RESULTS] Final qw (0DReactor) : {qw / 1000}")
         print(Fore.MAGENTA + f"[RESULTS] Error : {abs(qexp / 1000 - qw / 1000)}")
 
-        return wdot_np, qw, solution_dx_diff, solution_dx_conv
+        # Working in kW
+        qw_kW = qw / 1000
+        error = abs(qexp / 1000 - qw_kW)
+
+        return wdot_np, qw, solution_dx_diff, solution_dx_conv,error
 
     else:
         print(Fore.RED + "[ERROR] No valid dx values found.")
@@ -402,6 +406,103 @@ def update_gsi_gamma(xml_file_path, gamma_O, gamma_N, output_file_path=None):
 
     print(f"---> [INFO] XML updated and saved to: {output_file_path}")
     print(f"---> [DEBUG] Updated gamma_O: {updated['O']}, gamma_N: {updated['N']}")
+
+def run0DReactorSingle_dxConvOnly(mixture, Tinlet, Tsurface, Pstat, qexp, exe_file, n_species):
+
+    print(Fore.BLUE + f"[STEP] Running the model : {exe_file}")
+
+    print(Fore.WHITE + f"---> [INFO] Loading the model ...")
+    lib = ctypes.CDLL("./" + exe_file)
+    lib.ZeroDReactor.argtypes = [
+        ctypes.c_char_p, ctypes.c_double, ctypes.c_double,
+        ctypes.c_double, ctypes.c_double, ctypes.c_double,
+        ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double)
+    ]
+    lib.ZeroDReactor.restype = ctypes.c_int
+    print(Fore.GREEN + f"---> [SUCCESS] Model successfully loaded !")
+
+    mixture = mixture.encode("utf-8")
+
+    print(Fore.WHITE + f"---> [INFO] Defining Newton function ...")
+
+    # === Initialization ===
+    iteration_count = {"n": 0, "best": None}
+    dx_diff_fixed = 1e-3
+
+    # === Error function with fixed dx_diff ===
+    def log10_equation(log_dx_conv):
+        dx_conv = 10 ** log_dx_conv
+
+        if dx_conv <= 0:
+            return 1e20
+
+        iteration_count["n"] += 1
+
+        wdot = (ctypes.c_double * n_species)()
+        qw = ctypes.c_double()
+
+        try:
+            lib.ZeroDReactor(mixture, Tinlet, Tsurface, Pstat, dx_diff_fixed, dx_conv, wdot, ctypes.byref(qw))
+        except Exception as e:
+            print(Fore.RED + f"[ERROR] Call to ZeroDReactor failed: {e}")
+            return 1e20
+
+        qw_kW = qw.value / 1000
+        error = abs(qexp / 1000 - qw_kW)
+
+        # Update best solution if better
+        if iteration_count["best"] is None or error < iteration_count["best"]["error"]:
+            iteration_count["best"] = {
+                "dx_diff": dx_diff_fixed,
+                "dx_conv": dx_conv,
+                "error": error
+            }
+
+        # Early stop if acceptable
+        #if error < qexp / 1000 * 0.2:
+        #    raise EarlyStop()
+
+        return error
+
+    # === Optimization ===
+    try:
+        result = minimize_scalar(
+            log10_equation,
+            bounds=(-6, 0),
+            method='bounded',
+            options={'xatol': 1e-5}
+        )
+    except EarlyStop:
+        print(Fore.CYAN + "[INFO] Early stopping: error below threshold reached.")
+        result = None
+
+    # === Final evaluation ===
+    if iteration_count["best"]:
+        dx_diff = iteration_count["best"]["dx_diff"]
+        dx_conv = iteration_count["best"]["dx_conv"]
+        final_error = iteration_count["best"]["error"]
+
+        print(Fore.WHITE + f"---> [INFO] Total iterations = {iteration_count['n']}")
+        print(Fore.GREEN + f"---> [SUCCESS] Best error = {final_error:.5f}")
+
+        # Final call to get wdot and qw
+        wdot = (ctypes.c_double * n_species)()
+        qw = ctypes.c_double()
+        lib.ZeroDReactor(mixture, Tinlet, Tsurface, Pstat, dx_diff, dx_conv, wdot, ctypes.byref(qw))
+        wdot_np = np.ctypeslib.as_array(wdot, shape=(n_species,))
+        qw = qw.value
+
+        print(Fore.MAGENTA + f"[RESULTS] Final dx_diff (fixed) : {dx_diff}")
+        print(Fore.MAGENTA + f"[RESULTS] Final dx_conv (optimized) : {dx_conv}")
+        print(Fore.MAGENTA + f"[RESULTS] Final qw (0DReactor) : {qw / 1000}")
+        print(Fore.MAGENTA + f"[RESULTS] Error : {abs(qexp / 1000 - qw / 1000)}")
+
+        return wdot_np, qw, dx_diff, dx_conv, final_error
+
+    else:
+        print(Fore.RED + "[ERROR] No valid dx_conv value found.")
+        return None, None, None, None, None
+
 
 class EarlyStop(Exception):
     pass

@@ -170,53 +170,30 @@ results = evaluate_pan_and_vil_models(
 
 
 
+# Gamma model values
+pressures_new_model = [15, 50, 100]
+gamma_new_model = [0.01713, 0.03265, 0.14343]
 
+pressures_panerai = [15, 50, 100]
+gamma_panerai = [0.1, 0.01, 0.005]
 
+pressures_viladegut = [15, 50, 100]
+gamma_viladegut = [0.0882, 0.02661, 0.0096]
 
+# Plot
+plt.figure(figsize=(8, 6))
 
+plt.plot(pressures_new_model, gamma_new_model, marker='o', label='New model', color='tab:blue')
+plt.plot(pressures_panerai, gamma_panerai, marker='s', label='Panerai', color='tab:orange')
+plt.plot(pressures_viladegut, gamma_viladegut, marker='^', label='Viladegut & Chazot', color='tab:green')
 
+plt.xlabel('Static Pressure $p_c$ [mbar]', fontsize=16)
+plt.ylabel(r'Catalytic Efficiency $\gamma$', fontsize=16)
+plt.title(r'Comparison of $\gamma$ Models vs Pressure', fontsize=16)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
 
+# Save plot
+plt.savefig(global_output_path + "/Model_comparison.png", dpi=300)
 
-
-
-
-
-
-
-    #MAP_plots(
-    #    sm_model=sm_q,
-    #    samples=samples_PBC_SSG,
-    #    targ_p=targ_p,
-    #    MF_test=MF_test,
-    #    Pdyn_test=Pdyn_test,
-    #    T_test=T_test,
-    #    T_exp_list=T_test,
-    #    HF_exp_list=HF_test,
-    #    HF_exp_err_list=np.array(0.15*HF_test),
-    #    output_path= global_output_path + f"/MAP_predictions/PBC_SSG_{targ_p/100:.0f}mbar_predictions.jpeg",
-    #    global_output_path=global_output_path
-    #)
-#
-    #MAP_plots(
-    #    sm_model=sm_q,
-    #    samples=samples_PBC_UG,
-    #    targ_p=targ_p,
-    #    MF_test=MF_test,
-    #    Pdyn_test=Pdyn_test,
-    #    T_test=T_test,
-    #    T_exp_list=T_test,
-    #    HF_exp_list=HF_test,
-    #    HF_exp_err_list=np.array(0.15*HF_test),
-    #    output_path= global_output_path + f"/MAP_predictions/PBC_UG_{targ_p/100:.0f}mbar_predictions.jpeg",
-    #    global_output_path=global_output_path
-    #)
-#
-    #GN_GO_plotting(samples_PBC_SSG,targ_p,global_output_path)
-#
-    #GN_GO_plotting(samples_PBC_UG,targ_p,global_output_path)
-
-
-
-
-
-    
