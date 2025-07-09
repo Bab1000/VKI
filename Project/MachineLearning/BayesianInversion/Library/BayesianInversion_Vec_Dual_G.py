@@ -126,7 +126,7 @@ class BayesianInversion:
                         # Construction of normal distribution
                         if dist_type == "normal" and (mu is not None and uncertainty is not None):
                             # Computation of standard deviation (95%)
-                            sigma = max(uncertainty / 1.96)
+                            sigma = uncertainty / 1.96
                             # Building normal distribution
                             var = pm.Normal(name, mu=mu, sigma=sigma)
 
@@ -237,7 +237,7 @@ class BayesianInversion:
 
                         header = [f"Input {i+1}" for i in range(len(self.input_names_order))]
                         print(Fore.WHITE + f"\n=== Input matrix for the current simulation === ")
-                        print(tabulate(all_row_var_names, headers=header, tablefmt="fancy_grid"))
+                        print(Fore.WHITE + tabulate(all_row_var_names, headers=header, tablefmt="fancy_grid"))
                         print("\n")
 
                     else:
@@ -313,7 +313,7 @@ class BayesianInversion:
                             link_table.append([name, str(pred_expr), obs_val / 1000])
 
                         print(Fore.WHITE + f"\n === Mapping between Observations and Predictions === ")
-                        print(tabulate(link_table, headers=["Distribution", "SM Prediction (symbolic)", "Observed Value"], tablefmt="fancy_grid"))
+                        print(Fore.WHITE + tabulate(link_table, headers=["Distribution", "SM Prediction (symbolic)", "Observed Value"], tablefmt="fancy_grid"))
                         print("\n")
                     
                     else:

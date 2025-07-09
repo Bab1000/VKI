@@ -126,7 +126,7 @@ class BayesianInversion:
                         # Construction of normal distribution
                         if dist_type == "normal" and (mu is not None and uncertainty is not None):
                             # Computation of standard deviation (95%)
-                            sigma = max(uncertainty / 1.96)
+                            sigma = uncertainty / 1.96
                             # Building normal distribution
                             var = pm.Normal(name, mu=mu, sigma=sigma)
 
